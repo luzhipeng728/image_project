@@ -1,0 +1,12 @@
+fastapi==0.68.1
+uvicorn==0.15.0
+pydantic==1.8.2
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
+bcrypt==3.2.0
+python-multipart==0.0.5
+requests==2.26.0
+PyJWT==2.3.0
+aiofiles==0.8.0
+Pillow==9.0.0
+python-magic==0.4.24 
