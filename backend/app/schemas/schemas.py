@@ -1,22 +1,39 @@
 from typing import Optional, List
 from pydantic import BaseModel
+from datetime import datetime
 
 # Auth schemas
+
+
 class UserCreate(BaseModel):
     username: str
     password: str
+
+
+class UserResponse(BaseModel):
+    username: str
+    created_at: Optional[datetime] = None
+    is_admin: bool = False
+
+
+class UserAdminUpdate(BaseModel):
+    is_admin: bool
+
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 # Model schemas
+
+
 class ModelCreate(BaseModel):
     name: str
     alias: str
     mapping_name: Optional[str] = None
     original_price: float = 0
     current_price: float = 0
+
 
 class ModelResponse(BaseModel):
     id: int
@@ -26,15 +43,20 @@ class ModelResponse(BaseModel):
     current_price: float
 
 # Generation schemas
+
+
 class GenerationBase(BaseModel):
     model_id: int
     seed: Optional[int] = 1
     width: int = 1024
     height: int = 1024
     enhance: bool = False
+    project_id: Optional[int] = None
+
 
 class TextToImageRequest(GenerationBase):
     prompt: str
+
 
 class ImageToImageRequest(GenerationBase):
     prompt: Optional[str] = None
@@ -46,10 +68,13 @@ class ImageToImageRequest(GenerationBase):
     enhance: Optional[bool] = None
     gen_seed: Optional[int] = 42
 
+
 class GenerationResponse(BaseModel):
     id: int
     status: str
     image_url: Optional[str] = None
+    project_id: Optional[int] = None
+
 
 class GenerationHistoryResponse(BaseModel):
     id: int
@@ -62,11 +87,41 @@ class GenerationHistoryResponse(BaseModel):
     status: str
     image_url: Optional[str]
     created_at: str
+    project_id: Optional[int] = None
 
 # Image schemas
+
+
 class ImageResponse(BaseModel):
     id: int
     file_path: str
     width: Optional[int]
     height: Optional[int]
-    file_type: Optional[str] 
+    file_type: Optional[str]
+    project_id: Optional[int] = None
+
+
+class ImageUploadRequest(BaseModel):
+    project_id: Optional[int] = None
+    overwrite: bool = False
+
+# Project schemas
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    owner_id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None

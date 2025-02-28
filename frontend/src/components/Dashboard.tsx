@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Card, Form, Input, Button, Select, InputNumber, Switch, message, List, Tag } from 'antd';
-import { UserOutlined, LogoutOutlined, HistoryOutlined, SwapOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, HistoryOutlined, SwapOutlined, ProjectOutlined, UploadOutlined, PictureOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import ImageToImage from './ImageToImage';
 import History from './History';
+import Projects from './Projects';
+import ImageUpload from './ImageUpload';
+import ProjectGallery from './ProjectGallery';
 
 const { Header, Content, Sider } = Layout;
 const { Option } = Select;
@@ -127,6 +130,15 @@ const Dashboard: React.FC = () => {
             <Menu.Item key="history" icon={<HistoryOutlined />}>
               生成历史
             </Menu.Item>
+            <Menu.Item key="projects" icon={<ProjectOutlined />}>
+              项目管理
+            </Menu.Item>
+            <Menu.Item key="image-upload" icon={<UploadOutlined />}>
+              批量上传
+            </Menu.Item>
+            <Menu.Item key="project-gallery" icon={<PictureOutlined />}>
+              项目图库
+            </Menu.Item>
           </Menu>
         </Sider>
         <Content style={{ padding: '24px', minHeight: 280 }}>
@@ -204,6 +216,9 @@ const Dashboard: React.FC = () => {
             </Card>
           )}
           {selectedMenu === 'history' && <History />}
+          {selectedMenu === 'projects' && <Projects />}
+          {selectedMenu === 'image-upload' && <ImageUpload />}
+          {selectedMenu === 'project-gallery' && <ProjectGallery />}
         </Content>
       </Layout>
     </Layout>

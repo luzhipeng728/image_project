@@ -1,0 +1,127 @@
+2025-02-28 15:00:56,551 [INFO] worker: 启动队列监控系统，并发工作进程数: 3
+2025-02-28 15:00:56,572 [INFO] worker: 初始找到 1 个队列: image_generation_default
+2025-02-28 15:00:56,579 [INFO] worker: 已启动工作进程 worker-1-a55d707b (PID: 5439)
+2025-02-28 15:00:56,580 [INFO] worker: 已启动工作进程 worker-2-551e2bac (PID: 5440)
+2025-02-28 15:00:56,582 [INFO] worker: 已启动工作进程 worker-3-f2de57cc (PID: 5441)
+2025-02-28 15:00:56,583 [INFO] worker: 启动了任务进度更新线程
+2025-02-28 15:00:56,584 [INFO] worker: 发现 1 个新队列: image_generation_default
+2025-02-28 15:00:56,584 [INFO] worker: 队列发生变化，重启所有工作进程以监听 1 个队列
+2025-02-28 15:00:56,586 [INFO] worker: 已启动工作进程 worker-1-a25e6b33 (PID: 5442)
+2025-02-28 15:00:56,587 [INFO] worker: 已启动工作进程 worker-2-5845813e (PID: 5443)
+2025-02-28 15:00:56,589 [INFO] worker: 已启动工作进程 worker-3-6fbf3800 (PID: 5444)
+2025-02-28 15:00:56,662 [INFO] worker: 工作进程 worker-1-a25e6b33 (PID: 5442) 开始监听 1 个队列
+2025-02-28 15:00:56,665 [INFO] worker: 工作进程 worker-2-5845813e (PID: 5443) 开始监听 1 个队列
+2025-02-28 15:00:56,667 [INFO] worker: 工作进程 worker-3-6fbf3800 (PID: 5444) 开始监听 1 个队列
+2025-02-28 15:00:56,669 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-1-a25e6b33 started with PID 5442, version 1.14.1
+2025-02-28 15:00:56,669 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-1-a25e6b33
+2025-02-28 15:00:56,670 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:00:56,670 [INFO] rq.worker: Cleaning registries for queue: image_generation_default
+2025-02-28 15:00:56,670 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-3-6fbf3800 started with PID 5444, version 1.14.1
+2025-02-28 15:00:56,670 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-2-5845813e started with PID 5443, version 1.14.1
+2025-02-28 15:00:56,670 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-3-6fbf3800
+2025-02-28 15:00:56,670 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-2-5845813e
+2025-02-28 15:00:56,671 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:00:56,671 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:01:24,597 [INFO] worker: 收到信号 15，关闭所有工作进程...
+2025-02-28 15:01:24,598 [INFO] rq.worker: Worker wangjunyan.local:worker-3-6fbf3800 [PID 5444]: warm shut down requested
+2025-02-28 15:01:24,598 [INFO] rq.worker: Worker wangjunyan.local:worker-1-a25e6b33 [PID 5442]: warm shut down requested
+2025-02-28 15:01:24,598 [INFO] rq.worker: Worker wangjunyan.local:worker-2-5845813e [PID 5443]: warm shut down requested
+2025-02-28 15:01:24,601 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-1-a25e6b33
+2025-02-28 15:01:24,601 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-2-5845813e
+2025-02-28 15:01:24,601 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-3-6fbf3800
+2025-02-28 15:01:31,290 [INFO] worker: 启动队列监控系统，并发工作进程数: 5
+2025-02-28 15:01:31,298 [INFO] worker: 初始找到 1 个队列: image_generation_default
+2025-02-28 15:01:31,301 [INFO] worker: 已启动工作进程 worker-1-df9b3c7f (PID: 6182)
+2025-02-28 15:01:31,302 [INFO] worker: 已启动工作进程 worker-2-45d0af04 (PID: 6183)
+2025-02-28 15:01:31,303 [INFO] worker: 已启动工作进程 worker-3-af51c369 (PID: 6184)
+2025-02-28 15:01:31,304 [INFO] worker: 已启动工作进程 worker-4-9e567f92 (PID: 6185)
+2025-02-28 15:01:31,305 [INFO] worker: 已启动工作进程 worker-5-9100b532 (PID: 6186)
+2025-02-28 15:01:31,306 [INFO] worker: 启动了任务进度更新线程
+2025-02-28 15:01:31,308 [INFO] worker: 发现 1 个新队列: image_generation_default
+2025-02-28 15:01:31,308 [INFO] worker: 队列发生变化，重启所有工作进程以监听 1 个队列
+2025-02-28 15:01:31,310 [INFO] worker: 已启动工作进程 worker-1-ea2be1f6 (PID: 6187)
+2025-02-28 15:01:31,310 [INFO] worker: 已启动工作进程 worker-2-437ecba8 (PID: 6188)
+2025-02-28 15:01:31,312 [INFO] worker: 已启动工作进程 worker-3-e0d2dd1f (PID: 6189)
+2025-02-28 15:01:31,313 [INFO] worker: 已启动工作进程 worker-4-ca28fee9 (PID: 6190)
+2025-02-28 15:01:31,314 [INFO] worker: 已启动工作进程 worker-5-402ea28c (PID: 6191)
+2025-02-28 15:01:31,387 [INFO] worker: 工作进程 worker-1-ea2be1f6 (PID: 6187) 开始监听 1 个队列
+2025-02-28 15:01:31,387 [INFO] worker: 工作进程 worker-4-ca28fee9 (PID: 6190) 开始监听 1 个队列
+2025-02-28 15:01:31,390 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-4-ca28fee9 started with PID 6190, version 2.1.0
+2025-02-28 15:01:31,390 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-4-ca28fee9
+2025-02-28 15:01:31,390 [INFO] worker: 工作进程 worker-5-402ea28c (PID: 6191) 开始监听 1 个队列
+2025-02-28 15:01:31,390 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-1-ea2be1f6 started with PID 6187, version 2.1.0
+2025-02-28 15:01:31,390 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-1-ea2be1f6
+2025-02-28 15:01:31,391 [INFO] worker: 工作进程 worker-3-e0d2dd1f (PID: 6189) 开始监听 1 个队列
+2025-02-28 15:01:31,391 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:01:31,391 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:01:31,394 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-5-402ea28c started with PID 6191, version 2.1.0
+2025-02-28 15:01:31,394 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-5-402ea28c
+2025-02-28 15:01:31,394 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-3-e0d2dd1f started with PID 6189, version 2.1.0
+2025-02-28 15:01:31,394 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-3-e0d2dd1f
+2025-02-28 15:01:31,394 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:01:31,395 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:01:31,402 [INFO] worker: 工作进程 worker-2-437ecba8 (PID: 6188) 开始监听 1 个队列
+2025-02-28 15:01:31,405 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-2-437ecba8 started with PID 6188, version 2.1.0
+2025-02-28 15:01:31,405 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-2-437ecba8
+2025-02-28 15:01:31,405 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:02:47,204 [INFO] worker: 收到信号 15，关闭所有工作进程...
+2025-02-28 15:02:47,206 [INFO] rq.worker: Worker wangjunyan.local:worker-1-ea2be1f6 [PID 6187]: warm shut down requested
+2025-02-28 15:02:47,206 [INFO] rq.worker: Worker wangjunyan.local:worker-3-e0d2dd1f [PID 6189]: warm shut down requested
+2025-02-28 15:02:47,207 [INFO] rq.worker: Worker wangjunyan.local:worker-4-ca28fee9 [PID 6190]: warm shut down requested
+2025-02-28 15:02:47,207 [INFO] rq.worker: Worker wangjunyan.local:worker-5-402ea28c [PID 6191]: warm shut down requested
+2025-02-28 15:02:47,206 [INFO] rq.worker: Worker wangjunyan.local:worker-2-437ecba8 [PID 6188]: warm shut down requested
+2025-02-28 15:02:47,211 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-3-e0d2dd1f
+2025-02-28 15:02:47,211 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-5-402ea28c
+2025-02-28 15:02:47,211 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-2-437ecba8
+2025-02-28 15:02:47,211 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-1-ea2be1f6
+2025-02-28 15:02:47,211 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-4-ca28fee9
+2025-02-28 15:02:51,870 [INFO] worker: 启动队列监控系统，并发工作进程数: 5
+2025-02-28 15:02:51,878 [INFO] worker: 初始找到 1 个队列: image_generation_default
+2025-02-28 15:02:51,882 [INFO] worker: 已启动工作进程 worker-1-266979cb (PID: 7865)
+2025-02-28 15:02:51,882 [INFO] worker: 已启动工作进程 worker-2-9a6c1274 (PID: 7866)
+2025-02-28 15:02:51,884 [INFO] worker: 已启动工作进程 worker-3-5624bae6 (PID: 7867)
+2025-02-28 15:02:51,885 [INFO] worker: 已启动工作进程 worker-4-be272a9e (PID: 7868)
+2025-02-28 15:02:51,886 [INFO] worker: 已启动工作进程 worker-5-31c1d2d8 (PID: 7869)
+2025-02-28 15:02:51,887 [INFO] worker: 启动了任务进度更新线程
+2025-02-28 15:02:51,888 [INFO] worker: 发现 1 个新队列: image_generation_default
+2025-02-28 15:02:51,889 [INFO] worker: 队列发生变化，重启所有工作进程以监听 1 个队列
+2025-02-28 15:02:51,891 [INFO] worker: 已启动工作进程 worker-1-a59fc55b (PID: 7870)
+2025-02-28 15:02:51,892 [INFO] worker: 已启动工作进程 worker-2-6fdd94eb (PID: 7871)
+2025-02-28 15:02:51,893 [INFO] worker: 已启动工作进程 worker-3-cf38be16 (PID: 7872)
+2025-02-28 15:02:51,894 [INFO] worker: 已启动工作进程 worker-4-0d9ed0c7 (PID: 7873)
+2025-02-28 15:02:51,896 [INFO] worker: 已启动工作进程 worker-5-ef3ff0ef (PID: 7874)
+2025-02-28 15:02:51,979 [INFO] worker: 工作进程 worker-1-a59fc55b (PID: 7870) 开始监听 1 个队列
+2025-02-28 15:02:51,982 [INFO] worker: 工作进程 worker-4-0d9ed0c7 (PID: 7873) 开始监听 1 个队列
+2025-02-28 15:02:51,983 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-1-a59fc55b started with PID 7870, version 2.1.0
+2025-02-28 15:02:51,983 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-1-a59fc55b
+2025-02-28 15:02:51,984 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:02:51,984 [INFO] worker: 工作进程 worker-3-cf38be16 (PID: 7872) 开始监听 1 个队列
+2025-02-28 15:02:51,986 [INFO] worker: 工作进程 worker-5-ef3ff0ef (PID: 7874) 开始监听 1 个队列
+2025-02-28 15:02:51,986 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-4-0d9ed0c7 started with PID 7873, version 2.1.0
+2025-02-28 15:02:51,986 [INFO] worker: 工作进程 worker-2-6fdd94eb (PID: 7871) 开始监听 1 个队列
+2025-02-28 15:02:51,986 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-4-0d9ed0c7
+2025-02-28 15:02:51,986 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:02:51,987 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-3-cf38be16 started with PID 7872, version 2.1.0
+2025-02-28 15:02:51,987 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-3-cf38be16
+2025-02-28 15:02:51,987 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:02:51,990 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-2-6fdd94eb started with PID 7871, version 2.1.0
+2025-02-28 15:02:51,990 [INFO] rq.worker: Worker rq:worker:wangjunyan.local:worker-5-ef3ff0ef started with PID 7874, version 2.1.0
+2025-02-28 15:02:51,990 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-2-6fdd94eb
+2025-02-28 15:02:51,990 [INFO] rq.worker: Subscribing to channel rq:pubsub:wangjunyan.local:worker-5-ef3ff0ef
+2025-02-28 15:02:51,991 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:02:51,991 [INFO] rq.worker: *** Listening on image_generation_default...
+2025-02-28 15:16:22,096 [INFO] rq.worker: Cleaning registries for queue: image_generation_default
+2025-02-28 15:43:22,146 [INFO] rq.worker: Cleaning registries for queue: image_generation_default
+2025-02-28 15:43:22,244 [INFO] rq.worker: Cleaning registries for queue: image_generation_default
+2025-02-28 16:01:18,872 [INFO] rq.worker: Worker wangjunyan.local:worker-5-ef3ff0ef [PID 7874]: warm shut down requested
+2025-02-28 16:01:18,873 [INFO] rq.worker: Worker wangjunyan.local:worker-1-a59fc55b [PID 7870]: warm shut down requested
+2025-02-28 16:01:18,873 [INFO] worker: 收到信号 2，关闭所有工作进程...
+2025-02-28 16:01:18,879 [INFO] rq.worker: Worker wangjunyan.local:worker-3-cf38be16 [PID 7872]: warm shut down requested
+2025-02-28 16:01:18,877 [INFO] rq.worker: Worker wangjunyan.local:worker-4-0d9ed0c7 [PID 7873]: warm shut down requested
+2025-02-28 16:01:18,878 [INFO] rq.worker: Worker wangjunyan.local:worker-2-6fdd94eb [PID 7871]: warm shut down requested
+2025-02-28 16:01:18,883 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-1-a59fc55b
+2025-02-28 16:01:18,884 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-5-ef3ff0ef
+2025-02-28 16:01:18,887 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-3-cf38be16
+2025-02-28 16:01:18,887 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-4-0d9ed0c7
+2025-02-28 16:01:18,888 [INFO] rq.worker: Unsubscribing from channel rq:pubsub:wangjunyan.local:worker-2-6fdd94eb
+2025-02-28 16:01:19,043 [INFO] worker: 收到信号 2，关闭所有工作进程...
