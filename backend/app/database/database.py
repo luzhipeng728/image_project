@@ -327,4 +327,131 @@ def init_db():
                 ('admin', hashed_password, True)
             )
 
+        # 检查并更新图像到视频生成表
+        if table_exists("image_to_video_generations"):
+            # 检查并添加节点相关字段
+            columns_to_add = {
+                "node_id": "TEXT",
+                "node_status": "TEXT",
+                "node_description": "TEXT"
+            }
+
+            for column_name, column_type in columns_to_add.items():
+                add_column_if_not_exists(
+                    "image_to_video_generations", column_name, column_type)
+        else:
+            # 创建图像到视频生成表
+            print("Creating image_to_video_generations table...")
+            cursor.execute('''
+            CREATE TABLE image_to_video_generations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                steps INTEGER DEFAULT 10,
+                num_frames INTEGER DEFAULT 81,
+                video_path TEXT,
+                status TEXT DEFAULT 'pending',
+                progress INTEGER DEFAULT 0,
+                estimated_time REAL,
+                error_message TEXT,
+                node_id TEXT,
+                node_status TEXT,
+                node_description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (username) REFERENCES users(username)
+            )
+            ''')
+
         db.commit()
+
+
+# 图像到视频生成相关操作
+def create_i2v_generation(username: str, prompt: str, steps: int = 10,
+                          num_frames: int = 81):
+    """创建新的图像到视频生成任务"""
+    with get_db_context() as db:
+        cursor = db.cursor()
+        cursor.execute('''
+        INSERT INTO image_to_video_generations 
+        (username, prompt, steps, num_frames, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ''', (username, prompt, steps, num_frames))
+        db.commit()
+        return cursor.lastrowid
+
+
+def get_i2v_generation(generation_id: int):
+    """获取指定ID的图像到视频生成任务"""
+    with get_db_context() as db:
+        cursor = db.cursor()
+        cursor.execute('''
+        SELECT * FROM image_to_video_generations WHERE id = ?
+        ''', (generation_id,))
+        result = cursor.fetchone()
+        return dict(result) if result else None
+
+
+def get_user_i2v_generations(username: str):
+    """获取用户的所有图像到视频生成任务"""
+    with get_db_context() as db:
+        cursor = db.cursor()
+        cursor.execute('''
+        SELECT * FROM image_to_video_generations 
+        WHERE username = ? 
+        ORDER BY created_at DESC
+        ''', (username,))
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_i2v_generation_status(generation_id: int, status: str, progress: int = None,
+                                 estimated_time: float = None, video_path: str = None,
+                                 error_message: str = None, node_id: str = None,
+                                 node_status: str = None, node_description: str = None):
+    """更新图像到视频生成任务的状态"""
+    with get_db_context() as db:
+        cursor = db.cursor()
+
+        # 构建更新语句
+        update_fields = ["status = ?", "updated_at = CURRENT_TIMESTAMP"]
+        params = [status]
+
+        if progress is not None:
+            update_fields.append("progress = ?")
+            params.append(progress)
+
+        if estimated_time is not None:
+            update_fields.append("estimated_time = ?")
+            params.append(estimated_time)
+
+        if video_path is not None:
+            update_fields.append("video_path = ?")
+            params.append(video_path)
+
+        if error_message is not None:
+            update_fields.append("error_message = ?")
+            params.append(error_message)
+
+        if node_id is not None:
+            update_fields.append("node_id = ?")
+            params.append(node_id)
+
+        if node_status is not None:
+            update_fields.append("node_status = ?")
+            params.append(node_status)
+
+        if node_description is not None:
+            update_fields.append("node_description = ?")
+            params.append(node_description)
+
+        # 添加ID参数
+        params.append(generation_id)
+
+        # 执行更新
+        cursor.execute(f'''
+        UPDATE image_to_video_generations 
+        SET {", ".join(update_fields)}
+        WHERE id = ?
+        ''', params)
+        db.commit()
+        return cursor.rowcount > 0

@@ -16,6 +16,7 @@ from .api.endpoints import auth, generation
 from .api.endpoints.generation import router as generation_router
 from .api.endpoints.generation import image_router
 from .api.endpoints.projects import router as projects_router
+from .api.endpoints.i2v_api import router as i2v_router
 from .routers.generation import router as queue_router
 
 logging.basicConfig(level=logging.DEBUG)
@@ -53,6 +54,7 @@ app.include_router(
 )
 app.include_router(
     image_router,
+    prefix=f"{settings.API_V1_STR}/images",
     tags=["images"]
 )
 app.include_router(
@@ -60,10 +62,15 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/projects",
     tags=["projects"]
 )
+app.include_router(
+    i2v_router,
+    prefix=f"{settings.API_V1_STR}/i2v",
+    tags=["image-to-video"],
+)
 # 注册队列路由
 app.include_router(
     queue_router,
-    prefix=f"{settings.API_V1_STR}/generation",
+    prefix=f"{settings.API_V1_STR}/queue",
     tags=["queue"]
 )
 

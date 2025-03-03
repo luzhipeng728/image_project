@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Card, Form, Input, Button, Select, InputNumber, Switch, message, List, Tag } from 'antd';
-import { UserOutlined, LogoutOutlined, HistoryOutlined, SwapOutlined, ProjectOutlined, UploadOutlined, PictureOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, HistoryOutlined, SwapOutlined, ProjectOutlined, UploadOutlined, PictureOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import ImageToImage from './ImageToImage';
@@ -8,6 +8,7 @@ import History from './History';
 import Projects from './Projects';
 import ImageUpload from './ImageUpload';
 import ProjectGallery from './ProjectGallery';
+import ImageToVideo from './ImageToVideo';
 
 const { Header, Content, Sider } = Layout;
 const { Option } = Select;
@@ -127,6 +128,9 @@ const Dashboard: React.FC = () => {
             <Menu.Item key="image-to-image" icon={<SwapOutlined />}>
               图生图
             </Menu.Item>
+            <Menu.Item key="image-to-video" icon={<VideoCameraOutlined />}>
+              图生视频
+            </Menu.Item>
             <Menu.Item key="history" icon={<HistoryOutlined />}>
               生成历史
             </Menu.Item>
@@ -213,6 +217,11 @@ const Dashboard: React.FC = () => {
           {selectedMenu === 'image-to-image' && (
             <Card title="图生图">
               <ImageToImage />
+            </Card>
+          )}
+          {selectedMenu === 'image-to-video' && (
+            <Card title="图生视频">
+              <ImageToVideo />
             </Card>
           )}
           {selectedMenu === 'history' && <History />}

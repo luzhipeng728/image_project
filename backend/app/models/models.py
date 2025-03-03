@@ -83,3 +83,22 @@ class ProjectUser(BaseModel):
     can_edit: bool = False  # 是否有编辑权限
     can_generate: bool = True  # 是否有生成图片权限
     created_at: Optional[datetime] = None
+
+# 添加图像到视频生成模型
+
+
+class ImageToVideoGeneration(BaseModel):
+    id: Optional[int] = None
+    username: str
+    image_id: int
+    prompt: str
+    steps: int = 10
+    num_frames: int = 81
+    video_path: Optional[str] = None
+    status: str = "pending"  # pending, processing, completed, failed
+    progress: int = 0  # 进度百分比 0-100
+    estimated_time: Optional[float] = None  # 预估剩余时间（秒）
+    error_message: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    project_id: Optional[int] = None  # 项目ID关联
