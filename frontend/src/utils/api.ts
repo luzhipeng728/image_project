@@ -62,6 +62,33 @@ export interface GenerateImageParams {
   enhance?: boolean;       // 是否启用优化
 }
 
+// 图生视频接口参数
+export interface ImageToVideoParams {
+  image_base64: string;    // Base64编码的图片数据
+  prompt: string;          // 提示词
+  steps?: number;          // 生成步数，默认10
+  num_frames?: number;     // 帧数，默认81
+}
+
+// 视频生成任务状态
+export interface VideoTaskStatus {
+  task_id: number;
+  status: 'pending' | 'queued' | 'initializing' | 'loading_model' | 'preparing_environment' | 'setting_parameters' |
+         'loading_image' | 'preprocessing_image' | 'configuring_model' | 'preparing_prompt' | 'setting_sampler' |
+         'configuring_scheduler' | 'preparing_inference' | 'inference' | 'postprocessing_frames' | 'preparing_video' |
+         'combining_video' | 'optimizing_video' | 'postprocessing_video' | 'completed' | 'processing' | 'failed';
+  progress: number;
+  estimated_time: number | null;
+  video_path: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  node_id?: string;
+  node_status?: string;
+  node_description?: string;
+  queue_position?: number;
+}
+
 export { BACKEND_URL };
 export default api;
 
@@ -72,6 +99,40 @@ export const generateImage = async (params: GenerateImageParams) => {
     return response;
   } catch (error) {
     console.error('生图请求错误:', error);
+    throw error;
+  }
+}
+
+// 创建视频生成任务
+export const createVideoGeneration = async (params: ImageToVideoParams) => {
+  console.log('图生视频参数:', params);
+  try {
+    const response = await api.post('/api/i2v/create', params);
+    return response.data;
+  } catch (error) {
+    console.error('图生视频请求错误:', error);
+    throw error;
+  }
+}
+
+// 获取视频生成任务状态
+export const getVideoTaskStatus = async (taskId: number) => {
+  try {
+    const response = await api.get(`/api/i2v/status/${taskId}`);
+    return response.data as VideoTaskStatus;
+  } catch (error) {
+    console.error(`获取任务 ${taskId} 状态错误:`, error);
+    throw error;
+  }
+}
+
+// 获取用户的所有视频生成任务
+export const getUserVideoTasks = async () => {
+  try {
+    const response = await api.get(`/api/i2v/user`);
+    return response.data.tasks;
+  } catch (error) {
+    console.error(`获取视频任务错误:`, error);
     throw error;
   }
 } 
