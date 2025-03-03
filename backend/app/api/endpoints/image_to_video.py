@@ -115,7 +115,7 @@ class TimeEstimator:
 class I2VService:
     """图像到视频(I2V)服务封装类"""
 
-    def __init__(self, server_url: str = "http://36.213.56.75:9000/api/i2v/generate"):
+    def __init__(self, server_url: str = "http://localhost:9000/api/i2v/generate"):
         """
         初始化I2V服务
 
