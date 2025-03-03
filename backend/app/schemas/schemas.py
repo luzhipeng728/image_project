@@ -125,3 +125,16 @@ class ProjectResponse(BaseModel):
     owner_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+class BatchTaskStatus(BaseModel):
+    task_id: int
+    status: str
+    total_images: int
+    completed_images: int
+    created_at: str
+    updated_at: str
+    error: Optional[str] = None
+
+class BatchGenerationRequest(BaseModel):
+    prompt: str
+    model_id: int

@@ -9,6 +9,10 @@ import tempfile
 import uuid
 import re
 import hashlib
+import random
+import asyncio
+import logging
+import aiofiles
 
 from ...database.database import get_db
 from ...core.config import settings
@@ -16,7 +20,8 @@ from ...core.auth import get_current_user, verify_token
 from ...models.models import User
 from ...schemas.schemas import (
     ProjectCreate, ProjectUpdate, ProjectResponse,
-    ImageResponse, ImageUploadRequest, UserResponse
+    ImageResponse, ImageUploadRequest, UserResponse,
+    BatchGenerationRequest
 )
 
 router = APIRouter()
@@ -702,33 +707,48 @@ async def upload_images(
 
 async def save_image(file: UploadFile, upload_dir: str, filename: str) -> str:
     """保存上传的图片文件"""
-    # 处理文件名编码问题
+    # 确保上传目录存在
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # 构建文件路径
+    file_path = os.path.join(upload_dir, filename)
+    
+    # 保存上传的文件
+    async with aiofiles.open(file_path, 'wb') as out_file:
+        content = await file.read()
+        await out_file.write(content)
+    
+    # 使用 FFmpeg 处理和验证图片
     try:
-        # 移除可能导致问题的特殊字符
-        safe_filename = re.sub(r'[^\w\.\-\u4e00-\u9fa5]', '_', filename)
-
-        # 确保文件名是有效的UTF-8编码
-        safe_filename = safe_filename.encode('utf-8').decode('utf-8')
-
-        # 生成文件路径
-        file_path = os.path.join(upload_dir, safe_filename)
-
-        # 保存文件
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-        return file_path
+        # 创建临时输出文件路径
+        file_name, file_ext = os.path.splitext(filename)
+        temp_output = os.path.join(upload_dir, f"temp_{file_name}{file_ext}")
+        
+        # 运行 FFmpeg 命令处理图片
+        process = await asyncio.create_subprocess_exec(
+            'ffmpeg', '-i', file_path, '-y', temp_output,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        print(f"使用 ffmpeg 处理图片: {file_path}")
+        # 检查处理结果
+        if process.returncode != 0:
+            # 如果处理失败，删除原文件并抛出异常
+            os.remove(file_path)
+            raise Exception(f"图片验证失败: {stderr.decode()}")
+            
+        # 处理成功后，用处理后的图片替换原图片
+        os.replace(temp_output, file_path)
     except Exception as e:
-        print(f"保存文件失败: {str(e)}")
-        # 如果处理中文名失败，使用时间戳作为文件名
-        timestamp_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{os.path.splitext(filename)[1]}"
-        file_path = os.path.join(upload_dir, timestamp_filename)
-        with open(file_path, "wb") as buffer:
-            # 需要重新读取文件，因为前面已经读取过一次
-            file.file.seek(0)
-            content = await file.read()
-            buffer.write(content)
-        return file_path
+        # 确保清理任何临时文件
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if 'temp_output' in locals() and os.path.exists(temp_output):
+            os.remove(temp_output)
+        raise Exception(f"FFmpeg 处理失败: {str(e)}")
+    
+    return file_path
 
 # 辅助函数：保存图片信息到数据库
 
@@ -960,3 +980,105 @@ async def delete_project_image(
         db.rollback()
         print(f"删除图片记录失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"删除图片记录失败: {str(e)}")
+
+@router.get("/{project_id}/tasks")
+async def check_project_tasks(
+    project_id: int,
+    username: str = Depends(verify_token),
+    db = Depends(get_db)
+):
+    """检查项目是否有运行中的任务"""
+    cursor = db.cursor()
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM batch_tasks 
+            WHERE project_id = ? AND status IN ('pending', 'processing')
+        """, (project_id,))
+        result = cursor.fetchone()
+        
+        return {"has_running_task": result['count'] > 0}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/batch-generate/{project_id}")
+async def create_batch_generation(
+    project_id: int,
+    request: BatchGenerationRequest,
+    username: str = Depends(verify_token),
+    db = Depends(get_db)
+):
+    """创建批量生成任务"""
+    cursor = db.cursor()
+    try:
+        # 检查是否存在未完成的任务
+        cursor.execute("""
+            SELECT id FROM batch_tasks 
+            WHERE project_id = ? AND status IN ('pending', 'processing')
+        """, (project_id,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="该项目已存在未完成的批量任务")
+        
+        # 获取项目信息和权限验证
+        cursor.execute(
+            "SELECT * FROM projects WHERE id = ? AND owner_id = ?", 
+            (project_id, username)
+        )
+        project = cursor.fetchone()
+        
+        if not project:
+            raise HTTPException(status_code=404, detail="项目不存在或无权访问")
+
+        # 获取项目中的所有未生成的图片
+        cursor.execute(
+            "SELECT * FROM images WHERE project_id = ? AND is_generated = 0",
+            (project_id,)
+        )
+        images = cursor.fetchall()
+        
+        if not images:
+            raise HTTPException(status_code=400, detail="项目中没有可生成的图片")
+
+        # 创建批量任务
+        cursor.execute("""
+            INSERT INTO batch_tasks (
+                project_id, user_id, total_images, model_id, prompt, status
+            ) VALUES (?, ?, ?, ?, ?, 'pending')
+            RETURNING id
+        """, (
+            project_id, 
+            username, 
+            len(images) * 3,  # 每张图片生成3个版本
+            request.model_id, 
+            request.prompt
+        ))
+        task_id = cursor.fetchone()[0]
+        
+        # 创建子任务
+        for image in images:
+            for _ in range(3):  # 每张图片生成3个版本
+                seed = random.randint(1, 999999999)
+                cursor.execute("""
+                    INSERT INTO batch_task_details (
+                        batch_task_id, source_image_id, seed
+                    ) VALUES (?, ?, ?)
+                """, (task_id, image['id'], seed))
+        
+        db.commit()
+        
+        # 启动后台处理进程
+        # 修改这里，使用正确的数据库路径
+        asyncio.create_task(process_batch_task(task_id, settings.DATABASE_PATH))
+        
+        return {
+            "task_id": task_id,
+            "status": "pending",
+            "total_images": len(images) * 3,
+            "completed_images": 0
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error("创建批量任务失败", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

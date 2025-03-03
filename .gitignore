@@ -19,3 +19,27 @@ backend/venv/
 Thumbs.db 
 
 
+# 忽略所有 .pyc 文件
+*.pyc
+
+# 忽略所有 .pyo 文件
+*.pyo
+
+# 忽略所有的png文件
+*.png
+
+# 忽略所有的jpg文件
+*.jpg
+
+# 忽略所有的jpeg文件
+*.jpeg
+
+# 忽略所有的webp文件
+*.webp
+
+# 忽略所有的gif文件
+*.gif
+
+# 忽略所有的worker.log文件
+worker.log*
+

@@ -1157,7 +1157,7 @@ const ProjectGallery: React.FC = () => {
                 percent={
                   queueStatus.total_tasks
                     ? Math.round(
-                        (queueStatus.total_completed /
+                        (queueStatus.completed_tasks as any /
                           queueStatus.total_tasks) *
                           100
                       )
@@ -1172,7 +1172,7 @@ const ProjectGallery: React.FC = () => {
                 }
                 strokeWidth={10}
                 format={(percent) =>
-                  `${percent}% (${queueStatus.total_completed}/${queueStatus.total_tasks})`
+                  `${percent}% (${queueStatus.completed_tasks}/${queueStatus.total_tasks})`
                 }
               />
             </Col>
@@ -1212,7 +1212,7 @@ const ProjectGallery: React.FC = () => {
             <Col span={6}>
               <Statistic
                 title={<span style={{ fontSize: "14px" }}>已完成</span>}
-                value={queueStatus.total_completed || 0}
+                value={queueStatus.completed_tasks as any || 0}
                 valueStyle={{ color: "#52c41a", fontSize: "16px" }}
               />
             </Col>
@@ -1338,15 +1338,6 @@ const ProjectGallery: React.FC = () => {
             <div style={{ marginBottom: 10 }}>
               <Text strong>批量操作：</Text>
             </div>
-            <Button
-              type="primary"
-              icon={<PictureOutlined />}
-              onClick={handleBatchGenerate}
-              disabled={selectedImages.length === 0}
-              style={{ marginRight: 8 }}
-            >
-              批量生成 ({selectedImages.length})
-            </Button>
             <Button
               danger
               icon={<DeleteOutlined />}

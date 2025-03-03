@@ -1,0 +1,112 @@
+2025-03-03 13:48:27,559 [INFO] queue_worker: 队列工作进程启动，并发数: 5
+2025-03-03 13:48:27,560 [INFO] queue_worker: 开始监控新队列...
+2025-03-03 13:48:27,568 [INFO] queue_worker: 发现新队列: b0c3030a-0cb1-4eea-b0b6-caee4dbae546
+2025-03-03 13:48:27,574 [INFO] queue_worker: 开始处理队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546, 并发数: 5, 总任务数: 10
+2025-03-03 13:48:27,585 [INFO] queue_worker: 开始处理任务 6e6e47d5-b84f-418e-907d-0679b9dcb58e (队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546)
+2025-03-03 13:48:27,586 [INFO] queue_worker: 开始生成图像: prompt='参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息'
+2025-03-03 13:48:27,587 [INFO] root: 转换为绝对路径: /Users/luzhipeng/lu/image_project/backend/uploads/projects/1/live_PP_processed_sic_bo.png
+2025-03-03 13:48:27,593 [INFO] queue_worker: 开始处理任务 25c6a151-eaee-47cd-82ec-ab8c4d7d2859 (队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546)
+2025-03-03 13:48:27,594 [INFO] queue_worker: 开始生成图像: prompt='参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息'
+2025-03-03 13:48:27,594 [INFO] root: 转换为绝对路径: /Users/luzhipeng/lu/image_project/backend/uploads/projects/1/live_PP_processed_dragon_tiger.jpg
+2025-03-03 13:48:27,595 [INFO] queue_worker: 开始处理任务 0893acb4-b694-4b57-b50d-0221ba087b2a (队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546)
+2025-03-03 13:48:27,596 [INFO] queue_worker: 开始生成图像: prompt='参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息'
+2025-03-03 13:48:27,596 [INFO] root: 转换为绝对路径: /Users/luzhipeng/lu/image_project/backend/uploads/projects/1/live_PP_processed_sic_bo.jpg
+2025-03-03 13:48:27,597 [INFO] queue_worker: 开始处理任务 afeb054a-4c0c-4bf5-9f60-459f693debd5 (队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546)
+2025-03-03 13:48:27,598 [INFO] queue_worker: 开始生成图像: prompt='参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息'
+2025-03-03 13:48:27,598 [INFO] root: 转换为绝对路径: /Users/luzhipeng/lu/image_project/backend/uploads/projects/1/IMAGE_2025-02-17_16_00_48.png
+2025-03-03 13:48:27,601 [INFO] queue_worker: 开始处理任务 c8613cb0-a92c-4ff9-a8fe-406d27bd5ac6 (队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546)
+2025-03-03 13:48:27,602 [INFO] queue_worker: 开始生成图像: prompt='参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息'
+2025-03-03 13:48:27,602 [INFO] root: 转换为绝对路径: /Users/luzhipeng/lu/image_project/backend/uploads/projects/1/i2v_input.JPG
+2025-03-03 13:48:31,603 [INFO] root: enhanced_prompt: A fluffy white cat wearing stylish sunglasses, sitting on a kayak in bright blue water. In the background, lush green hills and a sandy beach are visible under a sunny sky filled with fluffy clouds. The cat is looking directly at the camera with a playful expression, and the sunlight reflects off the water, creating a vibrant atmosphere.
+2025-03-03 13:48:31,646 [INFO] root: enhanced_prompt: A vibrant graphic featuring the bold number '15' in a shiny golden color, prominently displayed. The background is a deep blue with elegant swirls and small circular designs in lighter shades. Below the number, there is a white, modern font text. The overall aesthetic is sleek and dynamic, suggesting excitement and energy.
+2025-03-03 13:48:31,754 [INFO] root: enhanced_prompt: A confident woman with long, dark hair, wearing a vibrant red traditional dress, smiles warmly at the camera. Behind her, a circular pattern of blue and purple lights creates a dynamic background, enhancing the lively atmosphere of the scene.
+2025-03-03 13:48:31,987 [INFO] root: enhanced_prompt: A stylish and elegant woman with long, dark hair wearing a vibrant red dress, standing confidently in a richly decorated lobby. The background features warm colors and luxurious textures, creating a sophisticated atmosphere.
+2025-03-03 13:48:32,653 [INFO] root: enhanced_prompt: A confident woman with long black hair, wearing a vibrant red traditional dress, stands in a warmly lit lobby setting. The background features rich textures and a circular decorative element, enhancing the elegant atmosphere. She has bold red lips and a friendly expression, conveying a welcoming presence.
+2025-03-03 13:48:34,172 [INFO] root: enhanced_prompt: A smiling woman wearing a vibrant red traditional dress stands in front of a bright, circular blue neon background. The backdrop features glowing circles that radiate outward, creating a lively atmosphere. Her hair is styled smoothly, and she exudes a welcoming charm.
+2025-03-03 13:48:34,924 [INFO] root: enhanced_prompt: A stylish lobby scene featuring a woman in a vibrant red outfit with elegant makeup. The background includes rich textures and warm colors, creating an inviting atmosphere, while the overall aesthetic is modern and sophisticated.
+2025-03-03 13:48:35,593 [INFO] root: enhanced_prompt: A vibrant design featuring bold, large golden numbers '15' with a modern, shiny texture. The numbers are set against a deep blue background, which is accented by swirling golden sparkles and light orbs, giving a sense of celebration or achievement. Below the numbers, the word 'BRA' is displayed in a clean, white font, maintaining a sleek and professional appearance.
+2025-03-03 13:48:37,985 [INFO] root: enhanced_prompt: A young woman with long dark hair smiles brightly, wearing a traditional red dress. The background features a vibrant circular blue pattern, giving an energetic and modern feel. The lower part of the image fades into a soft purple hue.
+2025-03-03 13:48:37,989 [INFO] root: 开始生成图片 - 提示词: A confident woman with long, dark hair, wearing a ...
+2025-03-03 13:48:37,993 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:48:42,999 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:48:43,004 [INFO] root: 图片已保存到: uploads/765428fa0e2e79cfa57cd2456cffebe2.png
+2025-03-03 13:48:43,007 [INFO] root: 开始生成图片 - 提示词: A smiling woman wearing a vibrant red traditional ...
+2025-03-03 13:48:43,010 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:48:48,297 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:48:48,302 [INFO] root: 图片已保存到: uploads/8380c738dd978b85d7e08ee7bfff0ecd.png
+2025-03-03 13:48:48,305 [INFO] root: 开始生成图片 - 提示词: A young woman with long dark hair smiles brightly,...
+2025-03-03 13:48:48,307 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:48:55,398 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:48:55,404 [INFO] root: 图片已保存到: uploads/73eef35c4ef6e6e62c39e7c167453758.png
+2025-03-03 13:48:55,409 [INFO] queue_worker: 图像生成完成: 3 个变体
+2025-03-03 13:48:55,414 [INFO] queue_worker: 任务 25c6a151-eaee-47cd-82ec-ab8c4d7d2859 处理完成
+2025-03-03 13:48:55,419 [INFO] root: enhanced_prompt: A vibrant image featuring a woman wearing a traditional red outfit with elegant patterns. She has long, dark hair and is smiling confidently. The background includes decorative elements that create a warm and inviting atmosphere, with soft lighting enhancing the overall aesthetic.
+2025-03-03 13:48:55,421 [INFO] root: enhanced_prompt: A fluffy cat wearing stylish sunglasses is taking a selfie on a sunny day near the ocean. The cat's fur glistens in the sunlight, and in the background, crystal-clear waters reflect the blue sky. The serene beach with palm trees can be seen to the side, enhancing the tropical vibe.
+2025-03-03 13:48:55,426 [INFO] root: enhanced_prompt: A glamorous casino lobby scene featuring a woman with long, dark hair styled elegantly, dressed in a vibrant red traditional outfit. She has a captivating smile and striking red lipstick. The background is rich with warm tones, including shades of orange and brown, adorned with elegant decor that evokes a sense of luxury and excitement. The atmosphere is inviting and sophisticated, hinting at a lively gaming experience.
+2025-03-03 13:48:55,431 [INFO] root: enhanced_prompt: A sleek design featuring bold, shiny golden numbers '15' against a deep blue background. Subtle sparkles enhance the illustration, creating a dynamic feel. Below the numbers, there is a contrasting white text 'BRA', presented in a modern, strong font. The overall look is polished and vibrant, exuding an energetic atmosphere.
+2025-03-03 13:48:55,434 [INFO] root: 开始生成图片 - 提示词: A stylish and elegant woman with long, dark hair w...
+2025-03-03 13:48:55,435 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:48:59,704 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:48:59,708 [INFO] root: 图片已保存到: uploads/eb1cf5ea9fba7cb4c9917fa86a55ac21.png
+2025-03-03 13:48:59,709 [INFO] root: 开始生成图片 - 提示词: A stylish lobby scene featuring a woman in a vibra...
+2025-03-03 13:48:59,712 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:03,798 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:03,804 [INFO] root: 图片已保存到: uploads/709feb946badb12a56343a16f7b9c397.png
+2025-03-03 13:49:03,808 [INFO] root: 开始生成图片 - 提示词: A vibrant image featuring a woman wearing a tradit...
+2025-03-03 13:49:03,811 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:12,799 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:12,805 [INFO] root: 图片已保存到: uploads/69ed9fb87a4946d6e2a81ca62b248ad9.png
+2025-03-03 13:49:12,808 [INFO] root: 开始生成图片 - 提示词: A vibrant graphic featuring the bold number '15' i...
+2025-03-03 13:49:12,812 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:16,406 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:16,411 [INFO] root: 图片已保存到: uploads/b3f407002b220e43277621988872c6a5.png
+2025-03-03 13:49:16,412 [INFO] root: 开始生成图片 - 提示词: A vibrant design featuring bold, large golden numb...
+2025-03-03 13:49:16,413 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:20,899 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:20,905 [INFO] root: 图片已保存到: uploads/1cefb46e1e593723e3a102fec362d9a1.png
+2025-03-03 13:49:20,909 [INFO] root: 开始生成图片 - 提示词: A sleek design featuring bold, shiny golden number...
+2025-03-03 13:49:20,912 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:24,606 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:24,611 [INFO] root: 图片已保存到: uploads/0ae9a1956e1c7536400f0c8a66c17fcc.png
+2025-03-03 13:49:24,615 [INFO] queue_worker: 图像生成完成: 3 个变体
+2025-03-03 13:49:24,621 [INFO] queue_worker: 任务 0893acb4-b694-4b57-b50d-0221ba087b2a 处理完成
+2025-03-03 13:49:24,621 [INFO] queue_worker: 图像生成完成: 3 个变体
+2025-03-03 13:49:24,625 [INFO] queue_worker: 任务 afeb054a-4c0c-4bf5-9f60-459f693debd5 处理完成
+2025-03-03 13:49:27,930 [INFO] root: enhanced_prompt: A confident woman wearing a vibrant red traditional dress, embodying elegance and charm. She has long, dark hair and a bold makeup look, featuring striking red lips. The background is warm and inviting, with luxurious decor elements that suggest a sophisticated setting, enhancing the overall atmosphere of excitement and glamour.
+2025-03-03 13:49:27,934 [INFO] root: 开始生成图片 - 提示词: A confident woman with long black hair, wearing a ...
+2025-03-03 13:49:27,937 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:31,705 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:31,708 [INFO] root: 图片已保存到: uploads/b14cc6922d7c8df45db54da63ce51e14.png
+2025-03-03 13:49:31,712 [INFO] root: 开始生成图片 - 提示词: A glamorous casino lobby scene featuring a woman w...
+2025-03-03 13:49:31,715 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:37,407 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:37,413 [INFO] root: 图片已保存到: uploads/c7b8fcf7977a4ee09ae996dbfb1f5e82.png
+2025-03-03 13:49:37,417 [INFO] root: 开始生成图片 - 提示词: A confident woman wearing a vibrant red traditiona...
+2025-03-03 13:49:37,420 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:42,596 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:42,600 [INFO] root: 图片已保存到: uploads/353de44a4814b98f1e66419ea9cdc8fb.png
+2025-03-03 13:49:42,603 [INFO] queue_worker: 图像生成完成: 3 个变体
+2025-03-03 13:49:42,609 [INFO] queue_worker: 任务 6e6e47d5-b84f-418e-907d-0679b9dcb58e 处理完成
+2025-03-03 13:49:42,612 [INFO] root: enhanced_prompt: A fluffy cat wearing stylish sunglasses, smiling at the camera while floating on a surfboard in clear blue water. The background features lush green hills and a sandy beach under a bright blue sky with fluffy clouds.
+2025-03-03 13:49:42,614 [INFO] root: 开始生成图片 - 提示词: A fluffy white cat wearing stylish sunglasses, sit...
+2025-03-03 13:49:42,616 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:45,996 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:46,002 [INFO] root: 图片已保存到: uploads/1425bc74066f5f6d4c825bfb0a12f5b9.png
+2025-03-03 13:49:46,005 [INFO] root: 开始生成图片 - 提示词: A fluffy cat wearing stylish sunglasses is taking ...
+2025-03-03 13:49:46,008 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:50,897 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:50,905 [INFO] root: 图片已保存到: uploads/538fe7163fcea9398b027baab60db290.png
+2025-03-03 13:49:50,908 [INFO] root: 开始生成图片 - 提示词: A fluffy cat wearing stylish sunglasses, smiling a...
+2025-03-03 13:49:50,911 [INFO] root: 开始调用API生成图片 - 模型: black-forest-labs/FLUX-1-schnell
+2025-03-03 13:49:54,802 [INFO] root: API调用成功，开始保存图片
+2025-03-03 13:49:54,807 [INFO] root: 图片已保存到: uploads/907de8ce656ddf9331c17e6beb427da9.png
+2025-03-03 13:49:54,810 [INFO] queue_worker: 图像生成完成: 3 个变体
+2025-03-03 13:49:54,813 [INFO] queue_worker: 任务 c8613cb0-a92c-4ff9-a8fe-406d27bd5ac6 处理完成
+2025-03-03 13:49:54,824 [INFO] queue_worker: 队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546 处理完成: 总任务数=10, 完成=10, 失败=0
+2025-03-03 13:49:54,824 [INFO] queue_worker: 队列 b0c3030a-0cb1-4eea-b0b6-caee4dbae546 所有任务已处理完成，更新状态为completed
+2025-03-03 13:51:49,959 [INFO] queue_worker: 发现新队列: 8c9f55bb-42a2-45bf-bf3b-a485666c78b9
+2025-03-03 13:51:49,970 [INFO] queue_worker: 开始处理队列 8c9f55bb-42a2-45bf-bf3b-a485666c78b9, 并发数: 5, 总任务数: 2
+2025-03-03 13:52:12,170 [INFO] queue_worker: 队列 8c9f55bb-42a2-45bf-bf3b-a485666c78b9 处理完成: 总任务数=2, 完成=1, 失败=0
+2025-03-03 13:52:12,174 [INFO] queue_worker: 队列 8c9f55bb-42a2-45bf-bf3b-a485666c78b9 还有未完成任务，更新状态为 completed
+2025-03-03 13:55:06,556 [INFO] queue_worker: 收到停止信号，准备关闭...
+2025-03-03 13:55:10,251 [INFO] queue_worker: 工作进程关闭

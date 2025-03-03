@@ -327,4 +327,42 @@ def init_db():
                 ('admin', hashed_password, True)
             )
 
+        # 创建批量任务表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS batch_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            total_images INTEGER NOT NULL,
+            completed_images INTEGER DEFAULT 0,
+            model_id INTEGER NOT NULL,
+            prompt TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            error TEXT,
+            FOREIGN KEY (project_id) REFERENCES projects (id),
+            FOREIGN KEY (user_id) REFERENCES users (username),
+            FOREIGN KEY (model_id) REFERENCES models (id)
+        )
+        ''')
+
+        # 创建批量任务详情表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS batch_task_details (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_task_id INTEGER NOT NULL,
+            source_image_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'pending',
+            seed INTEGER NOT NULL,
+            result_image_id INTEGER,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (batch_task_id) REFERENCES batch_tasks (id),
+            FOREIGN KEY (source_image_id) REFERENCES images (id),
+            FOREIGN KEY (result_image_id) REFERENCES images (id)
+        )
+        ''')
+
         db.commit()

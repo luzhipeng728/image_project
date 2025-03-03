@@ -1,449 +1,402 @@
-#!/usr/bin/env python
-"""
-图像生成队列工作进程，用于处理后台队列中的图像生成任务。
-使用RQ（Redis Queue）作为任务队列基础设施，Redis作为后端存储。
-
-使用方法:
-    python worker.py --concurrency=3
-
-参数:
-    --concurrency: 并发工作进程数量，默认为1
-"""
-
-import os
-import sys
-import argparse
+import asyncio
+import hashlib
 import logging
-import time
-import multiprocessing
-import signal
+import random
 import uuid
-import threading
-from rq import Worker, Queue
-import redis
-import socket
+from app.database.database import get_db
 import json
+import sys
+import os
+from PIL import Image
+from fastapi import HTTPException
+from app.schemas.schemas import ImageToImageRequest
+from app.services.image_service import ImageService
+from app.core.config import settings
+import redis
+import datetime
+import time
+import functools
+import concurrent.futures
 
-# 设置环境变量解决 MacOS fork() 问题
-os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-
-# 添加应用程序路径到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("worker.log")
-    ]
-)
-logger = logging.getLogger("worker")
-
-# 全局变量
-REDIS_CONN = None
-WORKER_PROCESSES = []
-MONITOR_THREAD = None
-SHUTDOWN_EVENT = threading.Event()
-
-
-def get_redis_connection():
+def get_redis():
     """获取Redis连接"""
-    try:
-        host = os.getenv("REDIS_HOST", "localhost")
-        port = int(os.getenv("REDIS_PORT", 6379))
-        db = int(os.getenv("REDIS_DB", 0))
+    return redis.Redis(
+        host='localhost',
+        port=6379,
+        db=0,
+        decode_responses=True
+    )
 
-        return redis.Redis(
-            host=host,
-            port=port,
-            db=db
+# 修复关键点：使用线程池处理阻塞操作
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+
+def run_in_threadpool(func):
+    """将可能阻塞的同步操作包装到线程池中执行的装饰器"""
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        return await asyncio.get_event_loop().run_in_executor(
+            thread_pool, 
+            functools.partial(func, *args, **kwargs)
         )
-    except Exception as e:
-        logger.error(f"连接Redis失败: {e}")
-        sys.exit(1)
+    return wrapper
 
+# 将同步的数据库操作包装成异步
+@run_in_threadpool
+def get_project_info(project_id):
+    with get_db() as db:
+        cursor = db.cursor()
+        cursor.execute("SELECT name, owner_id FROM projects WHERE id = ?", (project_id,))
+        return cursor.fetchone()
 
-def discover_image_generation_queues(redis_conn):
-    """发现所有图像生成队列
+@run_in_threadpool
+def get_source_image_id(image_url):
+    with get_db() as db:
+        cursor = db.cursor()
+        cursor.execute('SELECT id FROM images WHERE file_path = ?', (image_url,))
+        source_image = cursor.fetchone()
+        return source_image['id'] if source_image else None
 
-    此函数使用多种方式查找可能的图像生成队列
+@run_in_threadpool
+def open_and_resize_image(image_url):
+    image = Image.open(image_url)
+    original_width, original_height = image.size
+    
+    # 计算等比缩放后的尺寸
+    max_size = 1024
+    if original_width > max_size or original_height > max_size:
+        if original_width >= original_height:
+            ratio = max_size / original_width
+            width = max_size
+            height = int(original_height * ratio)
+        else:
+            ratio = max_size / original_height
+            height = max_size
+            width = int(original_width * ratio)
+    else:
+        if original_width >= original_height:
+            ratio = max_size / original_width
+            width = max_size
+            height = int(original_height * ratio)
+        else:
+            ratio = max_size / original_height
+            height = max_size
+            width = int(original_width * ratio)
+    
+    return width, height
 
-    Returns:
-        set: 队列名称集合
-    """
-    queue_names = set()
-
-    # 1. 直接查找以 image_generation_ 开头的键
-    for pattern in ["image_generation_*", "rq:queue:image_generation_*"]:
-        for key in redis_conn.scan_iter(pattern):
-            try:
-                key_str = key.decode('utf-8')
-                # 如果是 rq:queue: 前缀，去掉前缀
-                if key_str.startswith("rq:queue:"):
-                    qname = key_str.split(':', 2)[-1]
-                else:
-                    qname = key_str
-
-                # 确保队列名称以 image_generation_ 开头
-                if qname.startswith("image_generation_"):
-                    queue_names.add(qname)
-                    # logger.debug(f"发现队列: {qname} (来自键: {key_str})")
-            except Exception as e:
-                logger.error(f"处理队列键 {key} 失败: {e}")
-
-    # 2. 查找所有 rq:queues 集合中的队列
+async def generate_from_image_json(image_url: str, prompt: str, model_id: str, project_id: str):
+    """从已有图片生成新图片 (JSON请求版本)"""
     try:
-        queue_set_members = redis_conn.smembers("rq:queues")
-        for member in queue_set_members:
-            queue_name = member.decode('utf-8')
-            if queue_name.startswith("image_generation_"):
-                queue_names.add(queue_name)
-                # logger.debug(f"从 rq:queues 集合发现队列: {queue_name}")
-    except Exception as e:
-        logger.error(f"从 rq:queues 集合查找队列失败: {e}")
-
-    # 3. 查找队列触发标记
-    try:
-        trigger_keys = list(redis_conn.scan_iter(
-            "worker:listen:image_generation_*"))
-        for key in trigger_keys:
-            try:
-                key_str = key.decode('utf-8')
-                queue_id = key_str.split(':', 2)[-1]
-                queue_names.add(queue_id)
-                # logger.debug(f"从触发标记发现队列: {queue_id}")
-            except Exception as e:
-                logger.error(f"处理触发标记 {key} 失败: {e}")
-    except Exception as e:
-        logger.error(f"查找队列触发标记失败: {e}")
-
-    # 添加特定队列名称，防止被漏掉
-    for key in redis_conn.scan_iter("queue:image_generation_*:info"):
+        # 将所有可能阻塞的操作改为异步
+        project_info = await get_project_info(project_id)
+        if not project_info:
+            raise HTTPException(status_code=404, detail={"message": "项目不存在"})
+        
+        project_name, owner_id = project_info
+            
+        # 异步处理图片尺寸
         try:
-            key_str = key.decode('utf-8')
-            parts = key_str.split(':')
-            if len(parts) >= 3:
-                queue_id = parts[1]
-                queue_names.add(queue_id)
-                # logger.debug(f"从队列信息键发现队列: {queue_id}")
+            width, height = await open_and_resize_image(image_url)
         except Exception as e:
-            logger.error(f"处理队列信息键 {key} 失败: {e}")
-
-    return queue_names
-
-
-def worker_process(queue_names, worker_id):
-    """工作进程函数，在单独的进程中运行
-
-    Args:
-        queue_names: 队列名称列表
-        worker_id: 工作进程ID
-    """
-    try:
-        # 在子进程中重新初始化Redis连接
-        redis_conn = get_redis_connection()
-
-        # 创建RQ队列
-        queues = [Queue(name=qname, connection=redis_conn)
-                  for qname in queue_names]
-
-        logger.info(
-            f"工作进程 {worker_id} (PID: {os.getpid()}) 开始监听 {len(queues)} 个队列")
-
-        # 创建worker并开始工作
-        worker = Worker(
-            queues,
-            connection=redis_conn,
-            name=f"{socket.gethostname()}:{worker_id}",
-            # 禁用调度器，避免在线程中创建守护进程的问题
-            disable_default_exception_handler=True
-        )
-
-        # 设置信号处理器
-        def handle_shutdown(signum, frame):
-            logger.info(f"工作进程 {worker_id} 收到信号 {signum}，准备关闭...")
-            worker.request_stop()
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, handle_shutdown)
-        signal.signal(signal.SIGTERM, handle_shutdown)
-
-        # 开始工作（此调用是阻塞的）
-        worker.work(with_scheduler=False)  # 禁用内置调度器
-
-    except Exception as e:
-        logger.error(f"工作进程 {worker_id} (PID: {os.getpid()}) 出错: {e}")
-        sys.exit(1)
-
-
-def update_progress_status():
-    """后台线程：更新任务进度状态"""
-    redis_conn = get_redis_connection()
-
-    while not SHUTDOWN_EVENT.is_set():
-        try:
-            # 查找所有图像生成队列信息
-            for key in redis_conn.scan_iter("queue:image_generation_*:info"):
-                try:
-                    key_str = key.decode('utf-8')
-                    queue_data_str = redis_conn.get(key_str)
-
-                    if queue_data_str:
-                        queue_data = json.loads(queue_data_str)
-                        queue_id = key_str.split(':')[1]
-
-                        # 只更新状态为 processing 的队列
-                        if queue_data.get('status') == 'processing':
-                            # 获取已完成和失败的任务数
-                            completed_tasks_key = f"queue:{queue_id}:completed_tasks"
-                            failed_tasks_key = f"queue:{queue_id}:failed_tasks"
-
-                            completed_count = len(
-                                redis_conn.smembers(completed_tasks_key))
-                            failed_count = len(
-                                redis_conn.smembers(failed_tasks_key))
-
-                            # 更新队列数据
-                            if completed_count != queue_data.get('total_completed', 0) or failed_count != queue_data.get('total_failed', 0):
-                                queue_data['total_completed'] = completed_count
-                                queue_data['total_failed'] = failed_count
-
-                                # 检查是否所有任务都已处理完成
-                                total_tasks = queue_data.get('total_tasks', 0)
-                                if completed_count + failed_count >= total_tasks:
-                                    queue_data['status'] = 'completed'
-
-                                # 保存回Redis
-                                redis_conn.set(key_str, json.dumps(queue_data))
-                                logger.info(
-                                    f"更新队列进度: {queue_id}, 已完成: {completed_count}, 失败: {failed_count}")
-                except Exception as e:
-                    logger.error(f"更新队列进度状态失败: {e}")
-
-            # 每5秒检查一次
-            time.sleep(5)
-        except Exception as e:
-            logger.error(f"进度更新线程错误: {e}")
-            time.sleep(10)  # 发生错误后等待时间更长
-
-
-def start_workers(queue_names, concurrency):
-    """启动指定数量的工作进程
-
-    Args:
-        queue_names: 队列名称列表
-        concurrency: 并发工作进程数量
-
-    Returns:
-        list: 启动的进程列表
-    """
-    global WORKER_PROCESSES
-
-    # 清理现有进程
-    for p in WORKER_PROCESSES:
-        if p.is_alive():
-            p.terminate()
-            p.join(1)  # 等待最多1秒
-
-    WORKER_PROCESSES = []
-
-    # 启动新进程
-    for i in range(concurrency):
-        worker_id = f"worker-{i+1}-{uuid.uuid4().hex[:8]}"
-
-        p = multiprocessing.Process(
-            target=worker_process,
-            args=(queue_names, worker_id),
-            daemon=True
-        )
-
-        p.start()
-        WORKER_PROCESSES.append(p)
-        logger.info(f"已启动工作进程 {worker_id} (PID: {p.pid})")
-
-    return WORKER_PROCESSES
-
-
-def monitor_queues(concurrency):
-    """监控队列变化，发现新队列时重启工作进程
-
-    Args:
-        concurrency: 工作进程数量
-    """
-    global REDIS_CONN, SHUTDOWN_EVENT
-
-    # 记录已知队列
-    known_queues = set()
-
-    while not SHUTDOWN_EVENT.is_set():
-        try:
-            # 获取当前所有队列
-            current_queues = discover_image_generation_queues(REDIS_CONN)
-
-            # 如果没有队列，添加默认队列
-            if not current_queues:
-                current_queues = {"default", "image_generation_default"}
-
-                # 确保默认队列存在
-                key = "rq:queue:image_generation_default"
-                if not REDIS_CONN.exists(key):
-                    try:
-                        REDIS_CONN.sadd(
-                            "rq:queues", "image_generation_default")
-                        REDIS_CONN.expire(key, 86400)  # 1天过期
-                        logger.info("创建了默认图像生成队列: image_generation_default")
-                    except Exception as e:
-                        logger.error(f"创建默认队列失败: {e}")
-
-            # 检查是否有新队列或删除队列
-            if current_queues != known_queues:
-                new_queues = current_queues - known_queues
-                removed_queues = known_queues - current_queues
-
-                if new_queues:
-                    logger.info(
-                        f"发现 {len(new_queues)} 个新队列: {', '.join(new_queues)}")
-
-                if removed_queues:
-                    logger.info(
-                        f"有 {len(removed_queues)} 个队列已移除: {', '.join(removed_queues)}")
-
-                # 清理Redis中可能存在的旧worker注册信息
-                host_id = socket.gethostname()
-                worker_keys = REDIS_CONN.keys(f"rq:worker:{host_id}:*")
-                if worker_keys:
-                    logger.info(f"清理 {len(worker_keys)} 个旧worker注册信息")
-                    for key in worker_keys:
-                        REDIS_CONN.delete(key)
-
-                # 重启所有工作进程
-                logger.info(f"队列发生变化，重启所有工作进程以监听 {len(current_queues)} 个队列")
-                start_workers(current_queues, concurrency)
-
-                # 更新已知队列
-                known_queues = current_queues
-
-            # 检查工作进程是否健康
-            for i, p in enumerate(WORKER_PROCESSES):
-                if not p.is_alive():
-                    logger.warning(f"工作进程 {i+1} (PID: {p.pid}) 已停止，重启中...")
-
-                    # 创建新进程替换死亡进程
-                    worker_id = f"worker-{i+1}-{uuid.uuid4().hex[:8]}"
-                    new_p = multiprocessing.Process(
-                        target=worker_process,
-                        args=(known_queues, worker_id),
-                        daemon=True
-                    )
-                    new_p.start()
-
-                    # 替换进程列表中的元素
-                    WORKER_PROCESSES[i] = new_p
-                    logger.info(f"已重启工作进程 {worker_id} (PID: {new_p.pid})")
-
-            # 等待10秒再检查
-            time.sleep(10)
-
-        except KeyboardInterrupt:
-            logger.info("收到中断信号，停止监控")
-            break
-
-        except Exception as e:
-            logger.error(f"监控队列时出错: {e}")
-            time.sleep(5)  # 出错后短暂等待再继续
-
-
-def signal_handler(signum, frame):
-    """主进程的信号处理函数"""
-    logger.info(f"收到信号 {signum}，关闭所有工作进程...")
-
-    # 设置关闭事件
-    global SHUTDOWN_EVENT
-    SHUTDOWN_EVENT.set()
-
-    # 终止所有子进程
-    for p in WORKER_PROCESSES:
-        if p.is_alive():
-            p.terminate()
-
-    # 等待子进程结束
-    for p in WORKER_PROCESSES:
-        p.join(2)
-
-    # 等待监控线程结束
-    if MONITOR_THREAD and MONITOR_THREAD.is_alive():
-        MONITOR_THREAD.join(2)
-
-    sys.exit(0)
-
-
-def main():
-    """主函数，解析命令行参数并启动工作进程"""
-    global REDIS_CONN, MONITOR_THREAD
-
-    # 设置信号处理
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
-    parser = argparse.ArgumentParser(description="图像生成队列工作进程")
-    parser.add_argument("--concurrency", type=int, default=5, help="并发工作进程数量")
-    args = parser.parse_args()
-
-    concurrency = args.concurrency
-    logger.info(f"启动队列监控系统，并发工作进程数: {concurrency}")
-
-    try:
-        # 连接Redis
-        REDIS_CONN = get_redis_connection()
-
-        # 导入队列服务
-        from app.services.queue.queue_service import QueueService
-
-        # 在启动工作进程前，将未完成的队列标记为失败
-        updated_count = QueueService.mark_unfinished_queues_as_failed()
-        if updated_count > 0:
-            logger.info(f"标记了 {updated_count} 个未完成的队列为失败状态")
-
-        # 初始检查现有队列
-        queue_names = discover_image_generation_queues(REDIS_CONN)
-
-        # 如果没有找到特定的队列，则添加固定的默认图像生成队列和default队列
-        if not queue_names:
-            logger.warning("未找到现有的图像生成队列，将监听默认队列")
-            queue_names = {"default", "image_generation_default"}
-
-            # 在Redis中创建image_generation_default队列键，确保它存在
+            raise HTTPException(status_code=400, detail={
+                "message": f"无法处理图片: {str(e)}"
+            })
+
+        # 异步获取源图片ID
+        source_image_id = await get_source_image_id(image_url)
+        if not source_image_id:
+            raise HTTPException(status_code=404, detail={
+                                "message": "源图片记录不存在"})
+
+        # 检查缓存
+        seed = random.randint(0, 1000000)
+        cache_key = hashlib.md5(
+            f"{image_url}_{prompt}_{seed}".encode()).hexdigest()
+        cached_prompt = await ImageService.get_cached_image_description(image_url, prompt, seed)
+
+        if cached_prompt:
+            enhanced_prompt = cached_prompt
+        else:
+            # 调用LLM生成图片描述
             try:
-                REDIS_CONN.sadd("rq:queues", "image_generation_default")
-                logger.info("创建了默认图像生成队列: image_generation_default")
+                enhanced_prompt = await ImageService._call_llm_for_description(
+                    image_url,
+                    prompt,
+                    seed
+                )
+                print(f"enhanced_prompt: {enhanced_prompt}")
+                # 保存到缓存
+                await ImageService.save_image_description_cache(
+                    image_url=image_url,
+                    original_prompt=prompt,
+                    gen_seed=seed,
+                    enhanced_prompt=enhanced_prompt,
+                    width=width,
+                    height=height
+                )
             except Exception as e:
-                logger.error(f"创建默认队列失败: {e}")
+                logging.error(f"获取图片描述失败: {str(e)}", exc_info=True)
+                raise HTTPException(status_code=500, detail={
+                                    "message": f"获取图片描述失败: {str(e)}"})
 
-        # 记录所有找到的队列名称
-        logger.info(f"初始找到 {len(queue_names)} 个队列: {', '.join(queue_names)}")
+        # 生成图片
+        try:
+            result_path = await ImageService.generate_image(
+                username=owner_id,
+                prompt=enhanced_prompt,
+                model_id=model_id,
+                seed=seed,
+                width=width,
+                height=height,
+                enhance=False,
+                source_image_id=source_image_id,
+                generation_type='image_to_image',
+                project_id=project_id
+            )
 
-        # 启动初始工作进程
-        start_workers(queue_names, concurrency)
-
-        # 启动进度更新线程
-        MONITOR_THREAD = threading.Thread(
-            target=update_progress_status, daemon=True)
-        MONITOR_THREAD.start()
-        logger.info("启动了任务进度更新线程")
-
-        # 开始监控队列
-        monitor_queues(concurrency)
-
-    except KeyboardInterrupt:
-        logger.info("接收到中断信号，正在关闭工作进程...")
-        signal_handler(signal.SIGINT, None)
-
+            # 返回生成的图片URL
+            image_url = settings.BACKEND_URL + '/' + result_path
+            return {"id": uuid.uuid4(), "status": "completed", "image_url": image_url, "prompt": enhanced_prompt}
+        except HTTPException as e:
+            print(e)
     except Exception as e:
-        logger.error(f"工作进程启动失败: {e}")
+        print(e)
+
+
+async def worker():
+    print("Worker started")
+    # 外部传参
+    project_id = int(sys.argv[1])
+    
+    # 验证project_id
+    if project_id <= 0:
+        print(f"错误：项目ID必须是正整数，当前值: {project_id}")
         sys.exit(1)
+    
+    prompt = sys.argv[2] if len(sys.argv) > 2 else "根据图片给出详细的描述"
+    model_id = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+    
+    # 获取所有未完成的任务 - 使用异步方式
+    @run_in_threadpool
+    def get_pending_tasks(project_id):
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM images WHERE is_generated = 0 AND project_id = ?", (project_id,))
+        tasks = cursor.fetchall()
+        # 将Row对象转换为字典列表
+        task_list = [dict(task) for task in tasks]
+        cursor.close()
+        db.close()
+        return task_list
+    
+    # 异步获取任务
+    task_list = await get_pending_tasks(project_id)
+    
+    # 重置项目统计信息
+    redis_client = get_redis()
+    project_stats_key = f"project:{project_id}:stats"
+    redis_client.hset(project_stats_key, mapping={
+        "total_tasks": len(task_list),
+        "completed_tasks": 0,
+        "updated_at": datetime.datetime.now().isoformat()
+    })
+    print(f"已重置项目 {project_id} 统计数据: 当前活跃任务数 {len(task_list)}")
+    
+    # 创建信号量限制最大并发数
+    semaphore = asyncio.Semaphore(9)
+    
+    # 包装generate_from_image_json函数以更新Redis状态
+    async def process_subtask(task_data, subtask_index):
+        async with semaphore:  # 信号量控制子任务级别的并发
+            task_id = task_data['id']
+            redis_key = f"project:{project_id}:task:{task_id}"
+            subtask_key = f"{redis_key}:subtask:{subtask_index}"
+            
+            try:
+                # 更新为处理中状态
+                redis_client.hset(subtask_key, mapping={
+                    "status": "processing",
+                    "started_at": datetime.datetime.now().isoformat()
+                })
+                print(f"开始处理子任务 {task_id}_{subtask_index}")
+                
+                # 调用图片生成功能
+                result = await generate_from_image_json(
+                    task_data['file_path'], 
+                    prompt, 
+                    model_id, 
+                    project_id
+                )
+                
+                # 更新子任务状态
+                redis_client.hset(subtask_key, mapping={
+                    "status": "completed",
+                    "completed_at": datetime.datetime.now().isoformat()
+                })
+                
+                # 更新总进度
+                redis_client.hincrby(redis_key, "completed", 1)
+                completed = int(redis_client.hget(redis_key, "completed"))
+                total = int(redis_client.hget(redis_key, "total"))
+                
+                print(f"子任务 {task_id}_{subtask_index} 完成，总进度: {completed}/{total}")
+                
+                # 检查任务是否全部完成
+                if completed >= total:
+                    redis_client.hset(redis_key, mapping={
+                        "status": "completed",
+                        "completed_at": datetime.datetime.now().isoformat()
+                    })
+                    
+                    # 更新项目统计
+                    redis_client.hincrby(project_stats_key, "completed_tasks", 1)
+                    
+                    # 获取项目进度
+                    project_stats = redis_client.hgetall(project_stats_key)
+                    project_total = int(project_stats.get("total_tasks", 0))
+                    project_completed = int(project_stats.get("completed_tasks", 0))
+                    
+                    print(f"任务 {redis_key} 全部完成!")
+                    print(f"项目 {project_id} 进度: {project_completed}/{project_total}")
+                
+                return result
+            except Exception as e:
+                # 更新失败状态
+                redis_client.hset(subtask_key, mapping={
+                    "status": "failed",
+                    "error": str(e),
+                    "failed_at": datetime.datetime.now().isoformat()
+                })
+                print(f"子任务 {task_id}_{subtask_index} 失败: {str(e)}")
+                raise e
+    
+    async def process_task(task_data):
+        # 创建任务记录
+        task_id = task_data['id']
+        total_subtasks = 3
+        redis_key = f"project:{project_id}:task:{task_id}"
+
+        # 检查任务是否已存在并设置状态
+        task_exists = redis_client.exists(redis_key)
+        if task_exists:
+            status = redis_client.hget(redis_key, "status")
+            if status == "completed":
+                # 删除旧任务并创建新任务
+                for i in range(int(redis_client.hget(redis_key, "total") or total_subtasks)):
+                    subtask_key = f"{redis_key}:subtask:{i}"
+                    if redis_client.exists(subtask_key):
+                        redis_client.delete(subtask_key)
+                redis_client.delete(redis_key)
+                
+        # 创建/更新任务
+        redis_client.hset(redis_key, mapping={
+            "total": total_subtasks,
+            "completed": 0,
+            "status": "processing",
+            "created_at": datetime.datetime.now().isoformat()
+        })
+                
+        # 收集所有子任务
+        sub_tasks = []
+        for i in range(total_subtasks):
+            subtask_key = f"{redis_key}:subtask:{i}"
+            
+            # 创建子任务记录
+            redis_client.hset(subtask_key, mapping={
+                "id": f"{task_id}_{i}",
+                "status": "pending",
+                "updated_at": datetime.datetime.now().isoformat()
+            })
+            
+            # 添加子任务处理
+            sub_tasks.append(process_subtask(task_data, i))
+        
+        # 使用gather并发执行子任务 - 关键点：确保真正的并发
+        results = await asyncio.gather(*sub_tasks, return_exceptions=True)
+        return results
+    
+    # 为所有任务创建协程
+    all_tasks = [process_task(task) for task in task_list]
+    
+    # JSON序列化函数
+    def json_serializable(obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+    
+    # 并发执行所有任务
+    all_results = await asyncio.gather(*all_tasks, return_exceptions=True)
+    
+    # 打印结果
+    for task, results in zip(task_list, all_results):
+        print(f"任务 {task['id']} 完成，结果：")
+        try:
+            print(json.dumps({**task, "results": results}, indent=4, default=json_serializable))
+        except:
+            print(f"结果无法序列化: {results}")
+    
+    print("所有任务处理完成")
+    
+    # 关闭线程池
+    thread_pool.shutdown()
+
+
+def check_project_has_running_task(project_id):
+    """检查项目是否有正在运行的任务"""
+    redis_client = get_redis()
+    project_stats_key = f"project:{project_id}:stats"
+    
+    # 检查项目统计是否存在
+    if not redis_client.exists(project_stats_key):
+        return False
+    
+    # 从Redis获取项目状态
+    stats = redis_client.hgetall(project_stats_key)
+    total_tasks = int(stats.get("total_tasks", 0))
+    completed_tasks = int(stats.get("completed_tasks", 0))
+    
+    # 检查活跃任务
+    if total_tasks > completed_tasks:
+        for key in redis_client.scan_iter(f"project:{project_id}:task:*"):
+            if redis_client.type(key) == "hash" and not ":subtask:" in key:
+                status = redis_client.hget(key, "status")
+                if status == "processing":
+                    return True
+    
+    return False
+
+
+def clear_project_redis_data(project_id):
+    """清理项目相关的所有Redis数据"""
+    redis_client = get_redis()
+    project_keys = redis_client.keys(f"project:{project_id}:*")
+    if project_keys:
+        redis_client.delete(*project_keys)
+    print(f"已清理项目 {project_id} 的所有Redis数据")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    if len(sys.argv) < 2:
+        print("用法: python worker.py [project_id] [prompt] [model_id]")
+        sys.exit(1)
+
+    # 如果是删除任务，则删除任务
+    if len(sys.argv) > 2 and sys.argv[2] == "delete":
+        clear_project_redis_data(sys.argv[1])
+        sys.exit(0)
+        
+    project_id = int(sys.argv[1])
+    
+    # 检查项目是否有正在运行的任务
+    if check_project_has_running_task(project_id):
+        print(f"项目 {project_id} 已有任务正在运行，请等待当前任务完成后再运行新任务")
+        sys.exit(0)  # 直接退出程序，返回成功状态码
+    
+    # 继续处理
+    prompt = sys.argv[2] if len(sys.argv) > 2 else "根据图片给出详细的描述"
+    model_id = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+    
+    # 启动worker处理任务
+    asyncio.run(worker())

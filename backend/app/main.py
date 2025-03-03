@@ -9,6 +9,7 @@ import logging
 import multiprocessing
 import signal
 import psutil
+import asyncio
 
 from .core.config import settings
 from .database.database import init_db
@@ -17,6 +18,7 @@ from .api.endpoints.generation import router as generation_router
 from .api.endpoints.generation import image_router
 from .api.endpoints.projects import router as projects_router
 from .routers.generation import router as queue_router
+from .services.queue_worker import QueueWorker
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -42,6 +44,9 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 
 # worker 进程引用
 worker_process = None
+
+# 全局队列工作器实例
+queue_worker = None
 
 # 注册路由
 app.include_router(
@@ -242,98 +247,93 @@ def monitor_worker():
 @app.on_event("startup")
 async def startup_event():
     """应用启动时执行的操作"""
-    global worker_process
+    global queue_worker
+    
+    logging.info("应用启动，准备启动队列工作器...")
+    
+    # 初始化队列工作器
+    queue_worker = QueueWorker()
+    
+    # 启动后台任务来处理队列
+    asyncio.create_task(process_queues())
+    
+    logging.info("队列工作器已启动")
 
-    logging.info("应用启动，准备管理 worker 进程...")
-
-    # 先清理可能存在的旧进程
-    cleanup_worker()
-
-    # 额外清理：尝试删除 Redis 中的 worker 数据
-    try:
-        import redis
-        from dotenv import load_dotenv
-        from .services.queue.queue_service import QueueService
-
-        # 加载环境变量
-        load_dotenv()
-
-        # 获取 Redis 连接
-        redis_host = os.getenv('REDIS_HOST', 'localhost')
-        redis_port = int(os.getenv('REDIS_PORT', 6379))
-        redis_db = int(os.getenv('REDIS_DB', 0))
-
-        logging.info(
-            f"连接到 Redis 进行 worker 数据清理: {redis_host}:{redis_port}/{redis_db}")
-        redis_conn = redis.Redis(host=redis_host, port=redis_port, db=redis_db)
-
-        # 清理 worker 相关的 Redis 键
-        patterns_to_clean = [
-            "rq:worker:*",
-            "rq:workers",
-            "rq:workers:*",
-            "rq:wqueue:*"
-        ]
-
-        for pattern in patterns_to_clean:
-            try:
-                keys = redis_conn.keys(pattern)
-                if keys:
-                    logging.info(f"发现 {len(keys)} 个 '{pattern}' 键，将全部删除")
-                    for key in keys:
-                        redis_conn.delete(key)
-                        logging.debug(f"已删除键: {key.decode('utf-8')}")
-            except Exception as e:
-                logging.warning(f"清理 Redis 键模式 '{pattern}' 时出错: {e}")
-
-        # 检查所有未完成的队列任务，将其状态修改为失败
+async def process_queues():
+    """处理队列的后台任务"""
+    # 记录正在处理的队列
+    processing_queues = set()
+    
+    while True:
         try:
-            logging.info("检查未完成的队列任务...")
-            # 使用QueueService类的方法处理未完成的队列任务
-            updated_count = QueueService.mark_unfinished_queues_as_failed()
-
-            if updated_count > 0:
-                logging.info(f"已将 {updated_count} 个未完成的队列任务状态修改为失败")
-            else:
-                logging.info("未发现未完成的队列任务")
-
+            # 获取所有活跃的队列
+            active_queues = queue_worker.redis_service.get_all_active_queues()
+            
+            # 为每个等待中的队列启动处理任务
+            for queue_info in active_queues:
+                queue_id = queue_info["queue_id"]
+                status = queue_info.get("status")
+                
+                # 检查队列是否仍然存在且状态正确
+                current_info = queue_worker.redis_service.get_queue_status(queue_id)
+                if not current_info:
+                    logging.warning(f"队列 {queue_id} 已不存在，跳过处理")
+                    continue
+                    
+                current_status = current_info.get("status")
+                
+                # 检查是否有未完成的任务
+                total_tasks = int(current_info.get("total_tasks", 0))
+                completed_tasks = int(current_info.get("completed_tasks", 0))
+                failed_tasks = int(current_info.get("failed_tasks", 0))
+                
+                # 如果所有任务都已完成,更新状态并跳过
+                if completed_tasks + failed_tasks >= total_tasks:
+                    if current_status != "completed":
+                        logging.info(f"队列 {queue_id} 所有任务已完成,更新状态为completed")
+                        queue_worker.redis_service.update_queue_status(queue_id, "completed")
+                    continue
+                
+                # 只处理等待中、处理中或pending的队列
+                if current_status not in ["waiting", "pending", "processing"]:
+                    logging.debug(f"队列 {queue_id} 当前状态为 {current_status}，跳过处理")
+                    continue
+                
+                # 只处理未在处理中的队列
+                if queue_id not in processing_queues:
+                    logging.info(f"开始处理新队列: {queue_id}, 状态: {current_status}, 已完成: {completed_tasks}/{total_tasks}")
+                    processing_queues.add(queue_id)
+                    
+                    # 创建任务并设置回调来移除已完成的队列
+                    task = asyncio.create_task(queue_worker.start_queue(queue_id))
+                    
+                    def cleanup_queue(future):
+                        try:
+                            # 检查任务是否有异常
+                            if future.exception():
+                                logging.error(f"处理队列 {queue_id} 时发生错误: {future.exception()}")
+                            processing_queues.discard(queue_id)
+                            logging.info(f"队列 {queue_id} 处理完成，从处理集合中移除")
+                        except Exception as e:
+                            logging.error(f"清理队列 {queue_id} 时发生错误: {str(e)}")
+                    
+                    task.add_done_callback(cleanup_queue)
+            
+            # 每5秒检查一次新的队列
+            await asyncio.sleep(5)
+            
         except Exception as e:
-            logging.error(f"检查未完成队列任务时出错: {e}")
-
-        # 等待清理完成
-        logging.info("Redis 清理完成，等待 2 秒确保操作生效...")
-        time.sleep(2)
-
-    except ImportError:
-        logging.warning("无法导入 redis，跳过 Redis 数据清理")
-    except Exception as e:
-        logging.error(f"清理 Redis 数据时出错: {e}")
-
-    logging.info("启动 Redis 队列工作进程...")
-
-    # 创建并启动 worker 子进程（使用监控函数）
-    worker_process = multiprocessing.Process(target=monitor_worker)
-    worker_process.daemon = True  # 设置为守护进程，主进程退出时自动退出
-    worker_process.start()
-
-    logging.info(f"Redis 队列工作进程监控器已在后台启动 (PID: {worker_process.pid})")
-
-    # 记录一些系统信息
-    try:
-        import platform
-        logging.info(
-            f"系统信息: {platform.system()} {platform.release()}, Python {platform.python_version()}")
-        logging.info(
-            f"进程信息: 主进程 PID={os.getpid()}, Worker 监控进程 PID={worker_process.pid}")
-    except Exception as e:
-        logging.error(f"获取系统信息时出错: {e}")
-
+            logging.error(f"处理队列时出错: {str(e)}")
+            await asyncio.sleep(5)  # 出错时也等待5秒
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时执行的操作"""
-    logging.info("应用关闭，清理资源...")
-    cleanup_worker()
+    global queue_worker
+    
+    if queue_worker:
+        queue_worker.stop()
+        logging.info("队列工作器已停止")
 
 if __name__ == "__main__":
     import uvicorn

@@ -7,7 +7,9 @@ from ...schemas.schemas import (
     ImageToImageRequest,
     GenerationResponse,
     GenerationHistoryResponse,
-    ModelResponse
+    ModelResponse,
+    BatchTaskStatus,
+    BatchGenerationRequest
 )
 from ...services.image_service import ImageService
 from ...database.database import get_db
@@ -22,6 +24,14 @@ import os
 import aiofiles
 from PIL import Image
 from datetime import datetime
+import random
+import sqlite3
+from multiprocessing import Process
+from asyncio import get_event_loop
+import asyncio
+import subprocess
+from pydantic import BaseModel
+import redis
 
 # 创建一个新的路由组，不带前缀
 image_router = APIRouter(prefix="")
@@ -52,6 +62,36 @@ async def upload_file(
         # 保存文件
         async with aiofiles.open(file_path, 'wb') as out_file:
             await out_file.write(content)
+            
+        # 使用 FFmpeg 验证图片
+        try:
+            # 创建临时输出文件路径
+            temp_output = os.path.join(settings.UPLOAD_DIR, f"temp_{file_hash}.{file_extension}")
+            
+            print(f"file_path: {file_path}")
+            # 运行 FFmpeg 命令处理图片
+            process = await asyncio.create_subprocess_exec(
+                'ffmpeg', '-i', file_path, '-y', temp_output,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            print(f"使用FFmpeg处理图片: {file_path}")
+            # 检查处理结果
+            if process.returncode != 0:
+                # 如果处理失败，删除原文件并抛出异常
+                os.remove(file_path)
+                raise Exception(f"图片验证失败: {stderr.decode()}")
+                
+            # 处理成功后，用处理后的图片替换原图片
+            os.replace(temp_output, file_path)
+        except Exception as e:
+            # 确保清理任何临时文件
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            if 'temp_output' in locals() and os.path.exists(temp_output):
+                os.remove(temp_output)
+            raise Exception(f"FFmpeg 处理失败: {str(e)}")
 
         # 获取图片尺寸
         with Image.open(file_path) as img:
@@ -587,3 +627,122 @@ async def get_generation_results(
     except Exception as e:
         logging.error("获取生成结果失败", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+# 获取Redis连接
+def get_redis_connection():
+    return redis.Redis(
+        host='localhost',  # Redis服务器地址，根据实际情况修改
+        port=6379,         # Redis端口，根据实际情况修改
+        db=0,              # 使用的数据库编号
+        decode_responses=True  # 自动将响应解码为字符串
+    )
+
+# 定义请求模型
+class ProjectTaskRequest(BaseModel):
+    project_id: int
+    prompt: str = "根据图片给出详细的描述"
+    model_id: int = 1
+
+@router.post("/project/task", summary="创建项目图片处理任务")
+async def create_project_task(
+    request: ProjectTaskRequest,
+    username: str = Depends(verify_token)
+):
+    """
+    创建项目图片处理任务，执行worker.py脚本
+    """
+    try:
+        project_id = request.project_id
+        prompt = request.prompt
+        model_id = request.model_id
+        
+        # 构建命令 - 不进行额外检查，直接执行
+        worker_path = "/Users/luzhipeng/lu/image_project/backend/worker.py"
+        command = f"python {worker_path} {project_id} '{prompt}' {model_id}"
+        
+        # 执行命令
+        subprocess.Popen(command, shell=True)
+        
+        return {
+            "status": "success",
+            "message": f"已启动项目 {project_id} 的处理任务",
+            "project_id": project_id,
+            "prompt": prompt,
+            "model_id": model_id
+        }
+    except Exception as e:
+        logging.error(f"创建任务失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/project/{project_id}/progress", summary="获取项目处理进度")
+async def get_project_progress(
+    project_id: int,
+    username: str = Depends(verify_token)
+):
+    """
+    从Redis获取项目处理进度
+    """
+    try:
+        redis_client = get_redis_connection()
+        project_stats_key = f"project:{project_id}:stats"
+        
+        # 仅尝试从Redis获取进度信息
+        if not redis_client.exists(project_stats_key):
+            return {
+                "message": "没有找到项目进度信息",
+                "status": "unknown"
+            }
+            
+        # 从Redis获取项目统计
+        stats = redis_client.hgetall(project_stats_key)
+        total_tasks = int(stats.get("total_tasks", 0))
+        completed_tasks = int(stats.get("completed_tasks", 0))
+        
+        # 获取各任务的状态
+        task_details = []
+        for key in redis_client.scan_iter(f"project:{project_id}:task:*"):
+            if redis_client.type(key) == "hash" and not ":subtask:" in key:
+                task_info = redis_client.hgetall(key)
+                if task_info:
+                    task_id = key.split(":")[-1]
+                    status = task_info.get("status", "unknown")
+                    completed = int(task_info.get("completed", 0))
+                    total = int(task_info.get("total", 0))
+                    
+                    # 获取子任务信息
+                    subtasks = []
+                    for i in range(total):
+                        subtask_key = f"{key}:subtask:{i}"
+                        if redis_client.exists(subtask_key):
+                            subtask_info = redis_client.hgetall(subtask_key)
+                            subtasks.append({
+                                "id": subtask_info.get("id", f"{task_id}_{i}"),
+                                "status": subtask_info.get("status", "unknown"),
+                                "updated_at": subtask_info.get("updated_at", "")
+                            })
+                    
+                    task_details.append({
+                        "task_id": task_id,
+                        "status": status,
+                        "progress": f"{completed}/{total}",
+                        "percentage": round(completed / total * 100, 2) if total > 0 else 0,
+                        "subtasks": subtasks
+                    })
+        
+        # 构建响应
+        return {
+            "total_tasks": total_tasks,
+            "completed_tasks": completed_tasks,
+            "percentage": round(completed_tasks / total_tasks * 100, 2) if total_tasks > 0 else 0,
+            "status": "completed" if completed_tasks == total_tasks and total_tasks > 0 else 
+                      "processing" if completed_tasks > 0 else 
+                      "pending" if total_tasks > 0 else "no_tasks",
+            "tasks": task_details,
+            "updated_at": stats.get("updated_at", "")
+        }
+    except Exception as e:
+        logging.error(f"获取进度失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+

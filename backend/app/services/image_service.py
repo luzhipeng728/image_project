@@ -1,7 +1,8 @@
 import os
+import random
 import requests
 import hashlib
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, List
 from fastapi import HTTPException, UploadFile
 import aiofiles
 from PIL import Image
@@ -10,6 +11,7 @@ import base64
 import json
 import aiohttp
 from pathlib import Path
+import asyncio
 
 from ..core.config import settings
 from ..database.database import get_db
@@ -380,79 +382,92 @@ class ImageService:
     @staticmethod
     async def _call_llm_for_description(image_path: str, prompt: str, seed: Optional[int] = None) -> str:
         """调用 LLM API 获取图片描述"""
-        try:
-            # 读取图片并转换为 base64
-            base64_image = ""
-            with open(image_path, "rb") as image_file:
-                base64_image = base64.b64encode(
-                    image_file.read()).decode('utf-8')
+        max_retries = 3
+        retry_count = 0
+        backoff_time = 2  # 初始等待时间（秒）
+        
+        while retry_count < max_retries:
+            try:
+                # 读取图片并转换为 base64
+                base64_image = ""
+                with open(image_path, "rb") as image_file:
+                    base64_image = base64.b64encode(
+                        image_file.read()).decode('utf-8')
 
-            # print(base64_image)
+                # print(base64_image)
 
-            # 构建 API 请求
-            payload = {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"{prompt} 使用json格式回复，回复的格式必须是{{prompt:\"图片描述\"}}, 图片描述必须是英文"
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                # 构建 API 请求
+                payload = {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"{prompt} 使用json格式回复，回复的格式必须是{{prompt:\"图片描述\"}}, 图片描述必须是英文"
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    }
                                 }
-                            }
-                        ]
-                    }
-                ],
-                "model": "gpt-4o-mini",
-                "json": True
-            }
+                            ]
+                        }
+                    ],
+                    "model": "gpt-4o-mini",
+                    "json": True
+                }
 
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {settings.HYPRLAB_API_KEY}"
-            }
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {settings.HYPRLAB_API_KEY}"
+                }
 
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-                async with session.post(
-                    "https://api.hyprlab.io/v1/chat/completions",
-                    headers=headers,
-                    json=payload
-                ) as response:
-                    if not response.ok:
-                        error_text = await response.text()
-                        raise Exception(f"LLM API 调用失败: {error_text}")
+                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+                    async with session.post(
+                        "https://api.hyprlab.io/v1/chat/completions",
+                        headers=headers,
+                        json=payload
+                    ) as response:
+                        if not response.ok:
+                            error_text = await response.text()
+                            raise Exception(f"LLM API 调用失败: {error_text}")
 
-                    result = await response.json()
+                        result = await response.json()
 
-                    # 解析响应内容
-                    content = result["choices"][0]["message"]["content"]
+                        # 解析响应内容
+                        content = result["choices"][0]["message"]["content"]
 
-                    # 尝试解析 JSON 内容
-                    try:
-                        # 首先尝试查找 JSON 代码块
-                        json_match = content.split(
-                            "```json")[-1].split("```")[0].strip()
-                        json_content = json.loads(json_match)
-                    except:
-                        # 如果没有代码块，直接尝试解析整个内容
-                        json_content = json.loads(content)
+                        # 尝试解析 JSON 内容
+                        try:
+                            # 首先尝试查找 JSON 代码块
+                            json_match = content.split(
+                                "```json")[-1].split("```")[0].strip()
+                            json_content = json.loads(json_match)
+                        except:
+                            # 如果没有代码块，直接尝试解析整个内容
+                            json_content = json.loads(content)
 
-                    enhanced_prompt = json_content.get("prompt")
+                        enhanced_prompt = json_content.get("prompt")
 
-                    if not enhanced_prompt:
-                        raise ValueError("无法从 LLM 响应中提取有效的提示词")
+                        if not enhanced_prompt:
+                            raise ValueError("无法从 LLM 响应中提取有效的提示词")
 
-                    return enhanced_prompt
+                        return enhanced_prompt
 
-        except Exception as e:
-            logging.error(f"获取图片描述失败: {str(e)}", exc_info=True)
-            # 如果失败，返回原始提示词
-            return prompt
+            except Exception as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    logging.error(f"调用LLM失败，已重试{max_retries}次，放弃重试: {str(e)}")
+                    raise  # 重试耗尽后，重新抛出异常
+                
+                # 计算指数退避时间 (2, 4, 8秒...)
+                wait_time = backoff_time * (2 ** (retry_count - 1))
+                logging.warning(f"调用LLM失败，将在{wait_time}秒后进行第{retry_count+1}次重试: {str(e)}")
+                
+                # 等待一段时间后重试
+                await asyncio.sleep(wait_time)
 
     @staticmethod
     async def get_generation_history(
@@ -538,7 +553,8 @@ class ImageService:
         width: Optional[int] = None,
         height: Optional[int] = None,
         enhance: bool = False,
-        username: str = "admin"  # 默认用户名
+        username: str = "admin",  # 默认用户名
+        source_image_path: Optional[str] = None
     ) -> dict:
         """图像到图像生成，返回生成结果的字典"""
         logging.info(f"开始图像到图像生成 - 源图片: {image_url}, 提示词: {prompt[:50]}...")
@@ -551,6 +567,10 @@ class ImageService:
             source_image_path = image_url[len(settings.BACKEND_URL) + 1:]
         else:
             source_image_path = image_url
+
+        print("--------------------------------")
+        print(f"source_image_path: {source_image_path}")
+        print("--------------------------------")
 
         # 如果是相对路径，转换为绝对路径
         if not os.path.isabs(source_image_path) and not source_image_path.startswith('http'):
@@ -618,7 +638,7 @@ class ImageService:
         # 创建生成记录
         generation_id = await ImageService.create_generation_record(
             username, prompt, model_id, seed, width, height, enhance,
-            source_image_id, 'image_to_image', cache_key
+            source_image_id, 'image_to_image', cache_key, source_image_path
         )
 
         # 获取模型信息
@@ -762,3 +782,159 @@ class ImageService:
             logging.error(f"生成图片过程中发生未知错误: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail={
                                 "message": "服务器内部错误，请稍后重试"})
+
+    @staticmethod
+    async def generate_image_from_task(task_data: Dict) -> Dict:
+        """从任务数据生成图片"""
+        try:
+            # 从任务数据中提取所需参数，安全地处理所有数值参数
+            prompt = task_data.get("prompt", "")
+            model_id_raw = task_data.get("model_id")
+            model_id = int(model_id_raw) if model_id_raw is not None and model_id_raw != "None" else 0
+            
+            width_raw = task_data.get("width")
+            width = int(width_raw) if width_raw is not None and width_raw != "None" else 1024
+            
+            height_raw = task_data.get("height")
+            height = int(height_raw) if height_raw is not None and height_raw != "None" else 1024
+            
+            source_image_path = task_data.get("source_image_path")
+            
+            # 安全地转换 project_id 和 image_id
+            project_id = task_data.get("project_id")
+            project_id = int(project_id) if project_id is not None and project_id != "None" else None
+            
+            image_id = task_data.get("image_id")
+            image_id = int(image_id) if image_id is not None and image_id != "None" else None
+            
+            username = task_data.get("username", "admin")
+            
+            # 解析seeds数组
+            seeds = json.loads(task_data.get("seeds", "[]"))
+            if not seeds:
+                seeds = [None]  # 如果没有指定seeds，至少生成一张
+            
+            # 获取图片的绝对路径
+            if source_image_path.startswith(settings.BACKEND_URL):
+                source_image_path = source_image_path[len(settings.BACKEND_URL) + 1:]
+            
+            # 如果是相对路径，转换为绝对路径
+            if not os.path.isabs(source_image_path) and not source_image_path.startswith('http'):
+                backend_dir = os.path.dirname(os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__))))
+                source_image_path = os.path.join(backend_dir, source_image_path)
+                logging.info(f"转换为绝对路径: {source_image_path}")
+            
+            # 创建并行任务列表
+            tasks = []
+            for seed in seeds:
+                # 检查缓存中是否有增强的 prompt
+                cached_prompt = await ImageService.get_cached_image_description(source_image_path, prompt, seed)
+                
+                if cached_prompt:
+                    enhanced_prompt = cached_prompt.get('prompt', prompt)
+                else:
+                    # 调用LLM生成图片描述
+                    try:
+                        enhanced_prompt = await ImageService._call_llm_for_description(
+                            source_image_path,
+                            prompt,
+                            seed
+                        )
+                        logging.info(f"enhanced_prompt: {enhanced_prompt}")
+                        # 保存到缓存
+                        await ImageService.save_image_description_cache(
+                            image_url=source_image_path,
+                            original_prompt=prompt,
+                            gen_seed=seed,
+                            enhanced_prompt=enhanced_prompt,
+                            width=width,
+                            height=height
+                        )
+                    except Exception as e:
+                        logging.error(f"获取图片描述失败: {str(e)}", exc_info=True)
+                        enhanced_prompt = prompt
+                
+                # 为每个seed创建一个生成任务
+                tasks.append(
+                    ImageService.generate_image(
+                        username=username,
+                        prompt=enhanced_prompt,  # 使用增强后的 prompt
+                        model_id=model_id,
+                        seed=seed,
+                        width=width,
+                        height=height,
+                        enhance=False,
+                        source_image_id=image_id,  # 添加源图片ID
+                        generation_type='image_to_image',
+                        project_id=project_id
+                    )
+                )
+            
+            # 并行执行所有任务
+            results = await asyncio.gather(*tasks)
+            
+            # 处理所有结果
+            processed_results = []
+            for i, result in enumerate(results):
+                processed_results.append({
+                    "status": "success",
+                    "file_path": result,  # generate_image 返回的是文件路径
+                    "url": f"{settings.BACKEND_URL}/{result}",
+                    "width": str(width),
+                    "height": str(height),
+                    "seed": str(seeds[i] if i < len(seeds) else ""),
+                    "prompt": prompt,
+                    "variant_index": i,
+                    "source_image_id": image_id,
+                    "project_id": project_id
+                })
+            
+            return {
+                "status": "success",
+                "variants": processed_results,
+                "source_image_id": image_id,
+                "project_id": project_id
+            }
+            
+        except Exception as e:
+            raise Exception(f"图片生成失败: {str(e)}")
+
+    @staticmethod
+    async def get_project_images(project_id: int, db) -> List[Dict]:
+        """获取项目中的所有图片"""
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT id, file_path, width, height
+            FROM images
+            WHERE project_id = ? AND is_generated = FALSE
+            """,
+            (project_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    @staticmethod
+    async def create_tasks_from_project(project_id: int, model_id: int, db) -> List[Dict]:
+        """从项目创建任务列表"""
+        # 获取项目中的所有原始图片
+        images = await ImageService.get_project_images(project_id, db)
+        
+        tasks = []
+        for image in images:
+            # 为每个图片创建3个不同种子的任务
+            random_seeds = random.sample(range(1, 1000000), 3)
+            seeds = [random_seeds[0], random_seeds[1], random_seeds[2]]
+            
+            task = {
+                "image_id": image["id"],
+                "image_url": f"http://localhost:8002/uploads/{image['file_path']}",
+                "prompt": "参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息",
+                "width": image["width"],
+                "height": image["height"],
+                "seeds": seeds,
+                "source_image_path": image["file_path"]
+            }
+            tasks.append(task)
+        
+        return tasks
