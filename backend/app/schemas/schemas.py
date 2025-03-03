@@ -1,6 +1,7 @@
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
+from uuid import UUID
 
 # Auth schemas
 
@@ -70,7 +71,7 @@ class ImageToImageRequest(GenerationBase):
 
 
 class GenerationResponse(BaseModel):
-    id: int
+    id: UUID
     status: str
     image_url: Optional[str] = None
     project_id: Optional[int] = None
