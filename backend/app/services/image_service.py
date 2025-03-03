@@ -928,7 +928,7 @@ class ImageService:
             
             task = {
                 "image_id": image["id"],
-                "image_url": f"http://localhost:8002/uploads/{image['file_path']}",
+                "image_url": f"http://36.213.56.75:8002/uploads/{image['file_path']}",
                 "prompt": "参考以上图片，保留图片中的整体风格，生成一张优化后的图片，生成的图片描述必须是英文，图片中的存在文字，不需要描述，只需要描述图片中画面信息",
                 "width": image["width"],
                 "height": image["height"],

@@ -34,7 +34,7 @@ class Settings:
     DEFAULT_WIDTH: int = 1024
     DEFAULT_HEIGHT: int = 1024
     DEFAULT_ENHANCE: bool = False
-    BACKEND_URL: str = "http://localhost:8002"
+    BACKEND_URL: str = "http://36.213.56.75:8002"
 
 
 settings = Settings()
