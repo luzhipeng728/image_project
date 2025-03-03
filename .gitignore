@@ -43,3 +43,9 @@ Thumbs.db
 # 忽略所有的worker.log文件
 worker.log*
 
+# 忽略*.db文件
+*.db
+
+
+
+
