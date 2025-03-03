@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BACKEND_URL = 'http://localhost:8002';
+const BACKEND_URL = 'http://36.213.56.75:8002';
 
 const api = axios.create({
   baseURL: BACKEND_URL,
