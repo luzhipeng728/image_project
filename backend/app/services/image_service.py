@@ -349,36 +349,6 @@ class ImageService:
             ''', (cache_key, original_prompt, enhanced_prompt, width, height))
             db.commit()
 
-    # @staticmethod
-    # async def get_image_description(
-    #     file_path: str,
-    #     prompt: Optional[str],
-    #     image_url: str,  # 这个参数可以保留，但实际上也是文件路径
-    #     gen_seed: Optional[int]
-    # ) -> str:
-    #     try:
-    #         # 获取图片尺寸
-    #         with Image.open(file_path) as img:
-    #             width, height = img.size
-
-    #         # 调用 LLM 获取图片描述
-    #         enhanced_prompt = await ImageService._call_llm_for_description(file_path, prompt, gen_seed)
-
-    #         # 保存到缓存
-    #         await ImageService.save_image_description_cache(
-    #             image_url=file_path,  # 使用文件路径
-    #             original_prompt=prompt,
-    #             gen_seed=gen_seed,
-    #             enhanced_prompt=enhanced_prompt,
-    #             width=width,
-    #             height=height
-    #         )
-
-    #         return enhanced_prompt
-    #     except Exception as e:
-    #         logging.error("获取图片描述失败", exc_info=True)
-    #         return prompt if prompt else ""
-
     @staticmethod
     async def _call_llm_for_description(image_path: str, prompt: str, seed: Optional[int] = None) -> str:
         """调用 LLM API 获取图片描述"""
@@ -423,12 +393,14 @@ class ImageService:
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {settings.HYPRLAB_API_KEY}"
                 }
+                proxy = "http://127.0.0.1:10080"
 
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
                     async with session.post(
                         "https://api.hyprlab.io/v1/chat/completions",
                         headers=headers,
-                        json=payload
+                        json=payload,
+                        proxy=proxy
                     ) as response:
                         if not response.ok:
                             error_text = await response.text()
@@ -468,6 +440,52 @@ class ImageService:
                 
                 # 等待一段时间后重试
                 await asyncio.sleep(wait_time)
+
+    @staticmethod
+    async def request_with_proxy(url: str, method: str = "GET", headers: dict = None, data: dict = None, json_data: dict = None, timeout: int = 30) -> dict:
+        """
+        发送使用代理的HTTP请求
+        
+        Args:
+            url: 请求URL
+            method: 请求方法 (GET, POST等)
+            headers: 请求头
+            data: 表单数据
+            json_data: JSON数据
+            timeout: 超时时间(秒)
+            
+        Returns:
+            响应内容
+        """
+        proxy = "http://127.0.0.1:10080"
+        
+        async with aiohttp.ClientSession() as session:
+            kwargs = {
+                "headers": headers,
+                "timeout": aiohttp.ClientTimeout(total=timeout),
+                "proxy": proxy
+            }
+            
+            if data:
+                kwargs["data"] = data
+            if json_data:
+                kwargs["json"] = json_data
+            
+            if method.upper() == "GET":
+                async with session.get(url, **kwargs) as response:
+                    return {
+                        "status": response.status,
+                        "text": await response.text(),
+                        "json": await response.json() if response.headers.get("Content-Type") == "application/json" else None
+                    }
+            elif method.upper() == "POST":
+                async with session.post(url, **kwargs) as response:
+                    return {
+                        "status": response.status,
+                        "text": await response.text(),
+                        "json": await response.json() if response.headers.get("Content-Type") == "application/json" else None
+                    }
+            # 可以根据需要添加其他HTTP方法...
 
     @staticmethod
     async def get_generation_history(
@@ -678,6 +696,10 @@ class ImageService:
                         "model": model['name'],
                         "n": 1,
                         "seed": seed if seed is not None else settings.DEFAULT_SEED
+                    },
+                    proxies={
+                        "http": "http://127.0.0.1:10080",
+                        "https": "http://127.0.0.1:10080"
                     }
                 )
 

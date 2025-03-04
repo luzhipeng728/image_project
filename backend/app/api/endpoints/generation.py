@@ -657,7 +657,7 @@ async def create_project_task(
         model_id = request.model_id
         
         # 构建命令 - 不进行额外检查，直接执行
-        worker_path = "/Users/luzhipeng/lu/image_project/backend/worker.py"
+        worker_path = "/root/lu/image_project/backend/worker.py"
         command = f"python {worker_path} {project_id} '{prompt}' {model_id}"
         
         # 执行命令
